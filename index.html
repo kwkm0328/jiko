@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交通事故損害計算ツール（赤い本・裁判基準）</title>
+<style>
+/* メインテーマは青・水色系（--red等は名残の変数名。値は青系） */
+:root{--red:#2563eb;--red-bg:#eef5ff;--red-light:#b7d2f5;--border:#d7e0ec;--bg:#f4f7fc;--text:#16202c;--muted:#5b6b7d;--card:#fff;--accent:#0e88b0;--accent-bg:#e2f3fb;--ok:#1e7e34}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,'Hiragino Sans','Yu Gothic UI',Meiryo,sans-serif;background:var(--bg);color:var(--text);font-size:12.5px;line-height:1.5}
+/* ===== トップバー ===== */
+.topbar{background:var(--red);color:#fff;padding:7px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:15px;font-weight:700;white-space:nowrap}
+.topbar .sub{font-size:10px;opacity:.85}
+.topbar .spacer{flex:1}
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.5);border-radius:5px;overflow:hidden}
+.seg button{background:transparent;color:#fff;border:none;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit}
+.seg button.on{background:#fff;color:var(--red);font-weight:700}
+.tbtn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:5px;padding:5px 10px;font-size:11.5px;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tbtn:hover{background:rgba(255,255,255,.28)}
+.chk{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;white-space:nowrap}
+/* ===== レイアウト ===== */
+.wrap{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 38px)}
+.left{background:var(--card);border-right:1px solid var(--border);padding:10px;overflow-y:auto}
+.right{background:var(--bg);padding:12px;overflow-y:auto}
+@media(max-width:760px){.wrap{grid-template-columns:1fr;height:auto}}
+/* ===== 折りたたみセクション ===== */
+.sec{border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:#fff;overflow:hidden}
+.sec>summary{list-style:none;cursor:pointer;padding:7px 10px;font-size:11.5px;font-weight:700;color:var(--red);background:var(--red-bg);display:flex;align-items:center;gap:6px;user-select:none}
+.sec>summary::-webkit-details-marker{display:none}
+.sec>summary::before{content:'▸';font-size:10px;transition:transform .15s}
+.sec[open]>summary::before{transform:rotate(90deg)}
+.sec.acc>summary{color:var(--accent);background:var(--accent-bg)}
+.sec-body{padding:9px 10px}
+/* ===== フォーム ===== */
+.fld{margin-bottom:7px}
+.fld>label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:2px}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--border);border-radius:4px;padding:5px 7px;font-size:12px;font-family:inherit;outline:none;background:#fff}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--red)}
+.fld textarea{resize:vertical;min-height:46px}
+.fld .hint{font-size:10px;color:var(--muted);margin-top:1px}
+.fld .hint.warn{color:#e67e22}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.badge-3{font-size:10px;padding:1px 6px;border-radius:9px;background:#e8f5e9;color:#2e7d32;font-weight:700}
+.badge-5{font-size:10px;padding:1px 6px;border-radius:9px;background:#fff3e0;color:#e65100;font-weight:700}
+.mini-btn{font-size:10px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:#fff;cursor:pointer}
+.mini-btn:hover{background:var(--bg)}
+.suit-only{display:none}
+body.mode-suit .suit-only{display:block}
+/* ===== 資料取込 ===== */
+.ingest summary{color:var(--accent);background:var(--accent-bg)}
+.ingest textarea{width:100%;min-height:104px;border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-size:12px;font-family:inherit;resize:vertical;line-height:1.6}
+body.dragover .ingest{outline:2px dashed var(--red);outline-offset:3px;background:var(--red-bg)}
+.drop-hint{display:none;position:fixed;inset:0;z-index:200;background:rgba(37,99,235,.10);border:4px dashed var(--red);align-items:center;justify-content:center;pointer-events:none}
+.drop-hint span{background:#fff;border:1px solid var(--red-light);border-radius:10px;padding:14px 22px;font-size:17px;font-weight:700;color:var(--red)}
+body.dragover .drop-hint{display:flex}
+.btns{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.parse-result{margin-top:7px;font-size:10.5px;background:#fff;border:1px solid #aed6f1;border-radius:5px;padding:7px 9px;line-height:1.7}
+.parse-result .ok{color:var(--ok);font-weight:600}
+.parse-result .miss{color:#888}
+.ocr-progress{margin-top:7px;font-size:10.5px;background:#fff8e1;border:1px solid #ffe082;border-radius:5px;padding:6px 9px;color:#7c5c00;line-height:1.6}
+/* ===== 右：タブ ===== */
+.rtab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:10px}
+.rtab{padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--muted)}
+.rtab.on{border-bottom-color:var(--red);color:var(--red)}
+.rpane{display:none}.rpane.on{display:block}
+/* ===== 損害一覧表 ===== */
+.doc-title{font-size:15px;font-weight:700;text-align:center;margin-bottom:8px}
+.dmg-table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}
+.dmg-table th{background:var(--accent-bg);color:var(--accent);border:1px solid #aed6f1;padding:5px 7px;font-weight:700;font-size:11px}
+.dmg-table td{border:1px solid var(--border);padding:4px 7px;vertical-align:top}
+.dmg-table td.name{font-weight:600;white-space:nowrap}
+.dmg-table td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dmg-table .grp td{background:#f2f6fa;font-weight:700;color:var(--accent);font-size:11px}
+.dmg-table .total td{background:#eaf1fb;font-weight:700}
+.dmg-table .claim td{background:#2563eb;color:#fff;font-weight:700;font-size:13px}
+.dmg-table input.cell{width:100%;border:1px solid transparent;border-radius:3px;padding:2px 4px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;background:transparent}
+.dmg-table input.cell:hover{border-color:var(--border)}
+.dmg-table input.cell:focus{border-color:var(--red);background:#fff;outline:none}
+.dmg-table input.cell.auto-opp{background:#fff8e1;border-color:#f5c542}
+.dmg-table textarea.memo{width:100%;border:1px solid transparent;border-radius:3px;padding:2px 4px;font-size:10.5px;font-family:inherit;resize:vertical;min-height:20px;background:transparent;line-height:1.5}
+.dmg-table textarea.memo:hover{border-color:var(--border)}
+.dmg-table textarea.memo:focus{border-color:var(--red);background:#fff;outline:none}
+.col-opp{display:table-cell}
+body.no-opp .col-opp{display:none}
+.note-line{font-size:10.5px;color:#b7791f;background:#fffaf0;border:1px solid #f0d9a0;border-radius:5px;padding:6px 9px;margin-top:10px;line-height:1.6}
+.bottombar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:11px 12px;background:var(--red-bg);border:1px solid var(--red-light);border-radius:8px;position:sticky;bottom:6px}
+.bottombar .lbl{font-size:11px;color:var(--muted);font-weight:600}
+.bottombar .btn-sm.primary{background:var(--red);color:#fff;border-color:var(--red)}
+.ko-block{background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.9;white-space:pre-wrap}
+.ko-block h4{color:var(--red);font-size:12px;margin:10px 0 4px}
+.ko-block h4:first-child{margin-top:0}
+/* 距離 */
+.dist-out{font-size:11px;background:var(--accent-bg);border:1px solid #aed6f1;border-radius:5px;padding:6px 9px;margin-top:5px;display:none}
+.dist-out.on{display:block}
+/* モーダル */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg.on{display:flex}
+.modal{background:#fff;border-radius:8px;width:560px;max-width:96vw;max-height:82vh;overflow-y:auto;padding:18px}
+.modal h3{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--red)}
+.census-table{width:100%;border-collapse:collapse;font-size:11px}
+.census-table th{background:var(--red-bg);padding:4px 6px;text-align:left;font-weight:600}
+.census-table td{padding:3px 6px;border-bottom:1px solid var(--border)}
+.census-table input{width:100%;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px}
+.del-x{background:none;border:none;color:var(--red);cursor:pointer;font-size:12px}
+.modal-foot{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.btn-sm{padding:5px 11px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:#fff;font-family:inherit}
+.btn-sm.primary{background:var(--red);color:#fff;border-color:var(--red)}
+.restore-banner{background:#fffbe6;border:1px solid #ffe082;border-radius:5px;padding:6px 10px;font-size:11px;margin-bottom:8px;display:none;align-items:center;gap:8px}
+.restore-banner.on{display:flex}
+</style>
+</head>
+<body class="mode-nego">
+
+<!-- ===== トップバー ===== -->
+<div class="topbar">
+  <h1>交通事故損害計算ツール</h1>
+  <span class="sub">赤い本・裁判基準／賃金センサス令和7年／必ず原典で確認</span>
+  <span class="spacer"></span>
+  <span class="seg" id="modeSeg">
+    <button data-mode="nego" class="on" onclick="setMode('nego')">交渉用</button>
+    <button data-mode="suit" onclick="setMode('suit')">訴訟用</button>
+  </span>
+  <label class="chk"><input type="checkbox" id="showOpp" checked onchange="toggleOpp()"> 貴社提示欄</label>
+  <button class="tbtn" onclick="saveJson()">💾 保存</button>
+  <button class="tbtn" onclick="document.getElementById('loadJson').click()">📂 読込</button>
+  <span style="font-size:11px;opacity:.85">Excel出力▶</span>
+  <button class="tbtn" onclick="exportXlsx('nego')">交渉用</button>
+  <button class="tbtn" onclick="exportXlsx('suit')">裁判用</button>
+  <input type="file" id="loadJson" accept=".json" style="display:none" onchange="loadJsonFile(event)">
+</div>
+
+<div class="drop-hint"><span>📄 画像・PDF・テキストをドロップして取り込み</span></div>
+
+<!-- ===== 賃金センサス管理モーダル ===== -->
+<div class="modal-bg" id="censusModal">
+  <div class="modal">
+    <h3>賃金センサス データ管理</h3>
+    <p style="font-size:11px;color:#666;margin-bottom:10px">賃金構造基本統計調査（産業計・企業規模計・学歴計の全年齢平均）。値は<b>円/年（年収）</b>。家事従事者は女性全年齢を使用。</p>
+    <table class="census-table"><thead><tr><th>年度</th><th>男性（円/年）</th><th>女性（円/年）</th><th>男女計（円/年）</th><th>備考</th><th></th></tr></thead>
+    <tbody id="censusTbody"></tbody></table>
+    <div style="margin-top:8px"><button class="btn-sm" onclick="addCensusRow()">＋ 行を追加</button></div>
+    <div class="modal-foot">
+      <button class="btn-sm" onclick="closeCensus()">キャンセル</button>
+      <button class="btn-sm primary" onclick="saveCensusEdit()">保存して閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+<!-- ============ 左：入力 ============ -->
+<div class="left">
+  <div class="restore-banner" id="restoreBanner">
+    <span>前回の入力が残っています。</span>
+    <button class="mini-btn" onclick="restoreAuto()">復元</button>
+    <button class="mini-btn" onclick="clearAuto()">新規（クリア）</button>
+  </div>
+
+  <!-- 資料取込 -->
+  <details class="sec ingest" open>
+    <summary>📄 資料から自動入力（OCR対応）</summary>
+    <div class="sec-body">
+      <textarea id="docText" placeholder="交通事故証明書・診断書・打合せメモを貼り付け、または下のボタンで画像/PDFを読込。&#10;例：事故発生日 令和6年3月15日／症状固定 令和6年9月20日／入院14日 実通院60日 42歳 後遺障害第14級"></textarea>
+      <div class="hint">事故日・症状固定日・入院/実通院日数・年齢・等級・既払金・過失割合を抽出。<b>画面のどこにでも画像/PDF/テキストをドラッグ＆ドロップ（複数まとめてOK）</b>。複数は順次OCRして本文を連結し一括解析。書類は外部送信せず、OCRもこのPC内で実行（エンジンのみ初回取得）。</div>
+      <div class="btns">
+        <button class="btn-sm primary" onclick="parseDoc()" style="flex:1">解析して自動入力</button>
+        <button class="btn-sm" onclick="document.getElementById('ocrFile').click()">📷 画像・PDF</button>
+        <button class="btn-sm" onclick="document.getElementById('docFile').click()">.txt</button>
+        <input type="file" id="docFile" accept=".txt,.md,.csv" style="display:none" onchange="loadDocFile(event)">
+        <input type="file" id="ocrFile" accept="image/*,application/pdf" multiple style="display:none" onchange="runOCRFile(event)">
+      </div>
+      <div id="ocrProgress" class="ocr-progress" style="display:none"></div>
+      <div id="parseResult" class="parse-result" style="display:none"></div>
+    </div>
+  </details>
+
+  <!-- 事案概要（訴訟用） -->
+  <details class="sec acc suit-only" id="secGaiyo">
+    <summary>事案の概要（訴訟用・別紙に出力）</summary>
+    <div class="sec-body">
+      <div class="row2">
+        <div class="fld"><label>依頼者（原告）</label><input id="f_genkoku" oninput="onInput()"></div>
+        <div class="fld"><label>相手方（被告）</label><input id="f_hikoku" oninput="onInput()"></div>
+      </div>
+      <div class="fld"><label>事故態様</label><textarea id="f_taiyo" placeholder="例：被告運転の普通乗用車が、信号待ちで停止中の原告車両に追突した。" oninput="onInput()"></textarea></div>
+      <div class="fld"><label>傷病名</label><textarea id="f_shobyo" placeholder="例：頸椎捻挫、腰椎捻挫" oninput="onInput()"></textarea></div>
+      <div class="fld"><label>治療経過（空欄なら入通院欄から自動生成）</label><textarea id="f_keika" oninput="onInput()"></textarea></div>
+    </div>
+  </details>
+
+  <!-- 基本情報 -->
+  <details class="sec" open>
+    <summary>基本情報</summary>
+    <div class="sec-body">
+      <div class="fld"><label>事案区分</label>
+        <select id="f_caseType" onchange="onCaseType()">
+          <option value="shougai" selected>傷害（後遺障害なし）</option>
+          <option value="koui">後遺障害あり</option>
+          <option value="shibo">死亡</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>事故発生日</label><input type="date" id="f_accDate" oninput="onAccDate()"><div class="hint" id="rateHint"></div></div>
+        <div class="fld"><label>症状固定日</label><input type="date" id="f_fixDate" oninput="onDates()"></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>症状固定時の年齢</label><input type="number" id="f_age" min="0" max="100" placeholder="例 42" oninput="onAge()"></div>
+        <div class="fld"><label>性別</label><select id="f_gender" onchange="onIncomeBasis()"><option value="male">男性</option><option value="female" selected>女性</option><option value="both">男女計</option></select></div>
+      </div>
+      <div class="fld"><label>就労区分</label>
+        <select id="f_work" onchange="onIncomeBasis()">
+          <option value="homemaker" selected>家事従事者（女性全年齢・学歴計）</option>
+          <option value="employee">給与所得者（実収入）</option>
+          <option value="business">事業所得者（実収入）</option>
+          <option value="student">学生・年少者（全年齢平均）</option>
+          <option value="none">無職・その他</option>
+        </select>
+      </div>
+      <div class="fld"><label>基礎収入（年額・円）</label>
+        <div style="display:flex;gap:5px;align-items:center">
+          <select id="f_censusYear" onchange="onIncomeBasis()" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:5px;font-size:11.5px"></select>
+          <button class="mini-btn" onclick="openCensus()" style="white-space:nowrap">管理</button>
+        </div>
+        <input type="number" id="f_income" placeholder="4370700" oninput="onInput()" style="margin-top:4px">
+        <div class="hint" id="incomeHint">家事従事者＝女性全年齢。給与/事業所得者は実収入を入力。</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 入通院 -->
+  <details class="sec" open>
+    <summary>入通院状況</summary>
+    <div class="sec-body">
+      <div class="row2">
+        <div class="fld"><label>入院日数（暦日）</label><input type="number" id="f_hosp" min="0" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>実通院日数</label><input type="number" id="f_visits" min="0" placeholder="0" oninput="onInput()"></div>
+      </div>
+      <div class="fld"><label>通院期間（日数）</label><input type="number" id="f_omonths" min="0" step="1" placeholder="0" oninput="onMonthsManual()"><div class="hint" id="omHint">事故日〜症状固定日から自動計算（30日＝1ヶ月）、または直接入力</div></div>
+      <div class="fld"><label>傷害の種別（入通院慰謝料の別表）</label>
+        <select id="f_injType" onchange="onInput()">
+          <option value="2">別表II（通常）</option>
+          <option value="1">別表I（重傷・重篤）</option>
+          <option value="w">むち打ち等（他覚所見なし）</option>
+        </select>
+      </div>
+    </div>
+  </details>
+
+  <!-- 治療費・休業・実費 -->
+  <details class="sec" open>
+    <summary>治療費・休業損害・実費</summary>
+    <div class="sec-body">
+      <div class="fld"><label>治療費（実費・円）</label><input type="number" id="f_medical" placeholder="0" oninput="onInput()"></div>
+      <div class="fld"><label>休業損害の算定方式</label>
+        <select id="f_restMethod" onchange="onRestMethod()">
+          <option value="rate" selected>一律制限率方式（通院期間×日額×率）</option>
+          <option value="days">実通院日数方式（日数×日額）</option>
+          <option value="taper">期間別逓減方式</option>
+        </select>
+      </div>
+      <div id="restDaysWrap" class="fld"><label>休業日数</label><input type="number" id="f_restDays" placeholder="0" oninput="onInput()"><div class="hint"><span class="mini-btn" onclick="$('f_restDays').value=$('f_visits').value||0;onInput()">実通院日数を使う</span></div></div>
+      <div id="restRateWrap" style="display:none">
+        <div class="row2">
+          <div class="fld"><label>対象期間（日数）</label><input type="number" id="f_restPeriodDays" placeholder="自動" oninput="onInput()"><div class="hint">空欄＝通院期間×30.4</div></div>
+          <div class="fld"><label>労働能力制限率%</label><input type="number" id="f_restRate" value="30" oninput="onInput()"><div class="hint">裁判例の目安30%</div></div>
+        </div>
+      </div>
+      <div id="restTaperWrap" style="display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px">期間別逓減（日数×制限率%）</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600;font-size:10px">区間</th><th style="width:64px;font-size:10px;color:var(--muted)">日数</th><th style="width:58px;font-size:10px;color:var(--muted)">率%</th><th style="width:20px"></th></tr></thead><tbody id="taperBody"></tbody></table>
+        <div style="margin-top:4px"><span class="mini-btn" onclick="addTaper()">＋区間追加</span> <span class="mini-btn" onclick="seedTaperFromPeriod()">通院期間から目安</span></div>
+        <div class="hint">事故初期100%→回復に伴い逓減。診療経過（実通院頻度の低下等）に応じ設定。</div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>入通院付添費（円）</label><input type="number" id="f_tsukisoi" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>入院雑費（自動=1500×入院日）</label><input type="number" id="f_zappi" placeholder="自動" oninput="onInput()"></div>
+      </div>
+      <div class="fld"><label>その他（円）</label><input type="number" id="f_other" placeholder="0" oninput="onInput()"></div>
+    </div>
+  </details>
+
+  <!-- 通院交通費（距離） -->
+  <details class="sec acc">
+    <summary>通院交通費（距離自動算定）</summary>
+    <div class="sec-body">
+      <div class="fld"><label>自宅住所</label><input id="f_home" placeholder="北海道旭川市○○" oninput="onInput()"></div>
+      <div class="fld"><label>通院先（病院・整骨院）</label><input id="f_hosp_addr" placeholder="○○整形外科" oninput="onInput()"></div>
+      <div class="row3">
+        <div class="fld"><label>片道km</label><input type="number" id="f_km" step="0.1" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>通院回数</label><input type="number" id="f_trips" placeholder="実通院日数" oninput="onInput()"></div>
+        <div class="fld"><label>単価円/km</label><input type="number" id="f_kmrate" value="15" oninput="onInput()"></div>
+      </div>
+      <div class="btns">
+        <button class="btn-sm primary" onclick="fetchDistance()" style="flex:1">距離を自動取得</button>
+        <button class="btn-sm" onclick="openGmaps()">Googleマップで確認</button>
+      </div>
+      <div class="hint">往復×通院回数×単価で算定。住所は地図サーバー(OSM)に送信（医療情報は送りません）。</div>
+      <div class="dist-out" id="distOut"></div>
+    </div>
+  </details>
+
+  <!-- 後遺障害 -->
+  <details class="sec" id="secKoui" open>
+    <summary>後遺障害</summary>
+    <div class="sec-body">
+      <div class="fld"><label>後遺障害等級</label>
+        <select id="f_grade" onchange="onGrade()">
+          <option value="0">なし</option>
+          <option value="1">第１級（100%）</option><option value="2">第２級（100%）</option><option value="3">第３級（100%）</option>
+          <option value="4">第４級（92%）</option><option value="5">第５級（79%）</option><option value="6">第６級（67%）</option>
+          <option value="7">第７級（56%）</option><option value="8">第８級（45%）</option><option value="9">第９級（35%）</option>
+          <option value="10">第１０級（27%）</option><option value="11">第１１級（20%）</option><option value="12">第１２級（14%）</option>
+          <option value="13">第１３級（9%）</option><option value="14">第１４級（5%）</option>
+        </select>
+      </div>
+      <div id="gradeFields" style="display:none">
+        <div class="row3">
+          <div class="fld"><label>喪失率%</label><input type="number" id="f_lossRate" step="1" oninput="onInput()"></div>
+          <div class="fld"><label>喪失期間(年)</label><input type="number" id="f_workYears" oninput="onInput()"><div class="hint">67−年齢</div></div>
+          <div class="fld"><label>年利</label><select id="f_rate" onchange="onInput()"><option value="3">3%</option><option value="5">5%</option></select></div>
+        </div>
+        <div class="fld hint warn" id="grade14hint" style="display:none">※むち打ち14級は喪失期間5年程度、12級は10年程度に制限される例が多い。必要に応じ年数を修正。</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 死亡 -->
+  <details class="sec" id="secShibo" style="display:none" open>
+    <summary>死亡</summary>
+    <div class="sec-body">
+      <div class="fld"><label>被害者の立場（慰謝料・生活費控除率の目安）</label>
+        <select id="f_shiboStatus" onchange="onShiboStatus()">
+          <option value="pillar">一家の支柱（慰謝料2800万・控除30〜40%）</option>
+          <option value="spouse">配偶者・母親（2500万・控除30%）</option>
+          <option value="other_m">独身男性等（2000〜2500万・控除50%）</option>
+          <option value="other_f">独身女性等（2000〜2500万・控除30%）</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>死亡慰謝料（円）</label><input type="number" id="f_shiboSol" oninput="onInput()"></div>
+        <div class="fld"><label>葬儀費用（円）</label><input type="number" id="f_funeral" value="1500000" oninput="onInput()"><div class="hint">原則150万（赤い本）</div></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>生活費控除率%</label><input type="number" id="f_seikatsu" value="30" oninput="onInput()"></div>
+        <div class="fld"><label>就労可能年数</label><input type="number" id="f_shiboYears" placeholder="67−年齢" oninput="onInput()"></div>
+      </div>
+      <div class="hint">死亡逸失利益＝基礎収入×(1−生活費控除率)×ライプニッツ（就労可能年数・年利は基本情報の事故日で自動）。年金分は別途検討。</div>
+    </div>
+  </details>
+
+  <!-- 物損 -->
+  <details class="sec acc" id="secButsu">
+    <summary>🚗 物損（車両・代車等）<label class="chk" style="margin-left:auto;color:var(--accent)" onclick="event.stopPropagation()"><input type="checkbox" id="f_incButsu" onchange="onInput()"> 含める</label></summary>
+    <div class="sec-body">
+      <div class="row2">
+        <div class="fld"><label>車名（メーカー）</label><input id="f_carMaker" placeholder="トヨタ" oninput="onInput()"></div>
+        <div class="fld"><label>車種（通称名）</label><input id="f_carModel" placeholder="アクア" oninput="onInput()"></div>
+      </div>
+      <div class="row3">
+        <div class="fld"><label>型式</label><input id="f_carType" placeholder="DAA-NHP10" oninput="onInput()"></div>
+        <div class="fld"><label>初度登録(年式)</label><input id="f_carYear" placeholder="平成30年" oninput="onInput()"></div>
+        <div class="fld"><label>走行距離km</label><input type="number" id="f_mileage" placeholder="0" oninput="onInput()"></div>
+      </div>
+      <div class="btns">
+        <button class="btn-sm primary" onclick="openCarsensor()" style="flex:1">カーセンサーで検索</button>
+        <button class="btn-sm" onclick="openGoonet()" style="flex:1">グーネットで検索</button>
+      </div>
+      <div class="hint">検索結果は<b>ブラウザの「印刷→PDF保存」で証拠化</b>（同車種・同年式・同程度走行の掲載例で時価額を立証）。車検証を上のOCRに読ませると車名・型式・初度登録を自動入力。</div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:8px 0">
+      <div class="row2">
+        <div class="fld"><label>車両時価額（円）</label><input type="number" id="f_jika" placeholder="0" oninput="onInput()"><div class="hint">全損時の基準額</div></div>
+        <div class="fld"><label>修理費見積（円）</label><input type="number" id="f_shuri" placeholder="0" oninput="onInput()"></div>
+      </div>
+      <div id="zensonInd" style="display:none;margin-bottom:6px;font-size:11px"></div>
+      <div class="row2">
+        <div class="fld"><label>買替諸費用（全損時・円）</label><input type="number" id="f_kaikae" placeholder="0" oninput="onInput()"><div class="hint">登録・車庫証明・廃車等</div></div>
+        <div class="fld"><label>評価損（格落損・円）</label><input type="number" id="f_hyoka" placeholder="0" oninput="onInput()"></div>
+      </div>
+      <div class="row3">
+        <div class="fld"><label>代車料（円）</label><input type="number" id="f_daisha" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>レッカー代（円）</label><input type="number" id="f_rekka" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>休車損害（円）</label><input type="number" id="f_kyusha" placeholder="0" oninput="onInput()"></div>
+      </div>
+      <div class="fld"><label>その他物損（円）</label><input type="number" id="f_butsuOther" placeholder="0" oninput="onInput()"></div>
+    </div>
+  </details>
+
+  <!-- 損益相殺・過失 -->
+  <details class="sec" open>
+    <summary>既払金・過失相殺</summary>
+    <div class="sec-body">
+      <div class="row2">
+        <div class="fld"><label>既払金（円）</label><input type="number" id="f_paid" placeholder="0" oninput="onInput()"><div class="hint">治療費・休損・内払等すべて</div></div>
+        <div class="fld"><label>被害者過失%</label><input type="number" id="f_fault" placeholder="0" min="0" max="100" oninput="onInput()"></div>
+      </div>
+      <div class="fld"><label>弁護士費用率%（裁判用のみ計上）</label><input type="number" id="f_benRate" value="10" oninput="onInput()"><div class="hint">認容額の約10%。交渉用には計上しません。遅延損害金は別途。</div></div>
+    </div>
+  </details>
+</div>
+
+<!-- ============ 右：出力 ============ -->
+<div class="right">
+  <div class="rtab-bar">
+    <div class="rtab on" onclick="rtab('list')">損害額一覧表</div>
+    <div class="rtab" onclick="rtab('ko')">計算の根拠</div>
+    <div class="rtab suit-only" onclick="rtab('gaiyo')">事案の概要</div>
+  </div>
+
+  <div id="pane_list" class="rpane on">
+    <div class="doc-title" id="docTitle">損害賠償額の提示</div>
+    <table class="dmg-table">
+      <thead><tr>
+        <th style="width:120px">損害費目</th>
+        <th class="col-opp" style="width:96px">貴社提示額</th>
+        <th style="width:104px">当方提示額</th>
+        <th>備考（計算の根拠）</th>
+      </tr></thead>
+      <tbody id="dmgBody"></tbody>
+      <tfoot id="dmgFoot"></tfoot>
+    </table>
+    <div class="note-line">当方提示額は赤い本・裁判基準。<b>弁護士費用は裁判用のみ認容額の約10%を計上</b>（交渉用は含まず）。遅延損害金は別途（事故日から年3%）。慰謝料の増減額事由は備考で調整してください。金額欄・備考欄は直接編集できます（編集内容も保存対象）。金額は1円未満四捨五入。</div>
+    <div class="bottombar">
+      <button class="btn-sm" onclick="saveJson()">💾 保存</button>
+      <button class="btn-sm" onclick="document.getElementById('loadJson').click()">📂 読込</button>
+      <span class="lbl">Excel出力▶</span>
+      <button class="btn-sm primary" onclick="exportXlsx('nego')">交渉用</button>
+      <button class="btn-sm primary" onclick="exportXlsx('suit')">裁判用</button>
+    </div>
+  </div>
+
+  <div id="pane_ko" class="rpane">
+    <div class="ko-block" id="koBlock"></div>
+  </div>
+
+  <div id="pane_gaiyo" class="rpane">
+    <div class="ko-block" id="gaiyoBlock"></div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ===================================================================
+   赤い本 別表（令和2年改定・現行）単位：万円  行=入院月(0-10) 列=通院月(0-14)
+=================================================================== */
+const T2=[[0,19,36,53,67,79,89,97,103,109,113,117,119,120,121],[53,69,83,95,105,113,119,125,129,133,136,139,141,142,143],[101,115,127,138,147,154,160,165,169,172,175,177,178,179,180],[145,158,168,177,185,191,196,200,204,207,209,211,213,214,215],[184,196,205,213,220,226,231,235,238,241,244,246,248,249,250],[217,228,236,244,250,256,260,264,267,270,272,274,276,277,278],[244,254,262,269,275,280,284,288,291,294,296,298,300,301,302],[269,278,286,292,298,302,306,310,312,315,317,319,321,322,323],[291,300,307,313,318,323,326,329,332,334,336,338,339,340,341],[311,319,326,331,336,340,343,346,349,351,352,354,355,356,357],[329,336,343,347,352,356,359,362,364,366,368,369,370,371,372]];
+const T1=[[0,28,52,73,90,105,116,124,132,139,145,150,154,158,162],[77,101,122,140,157,170,181,190,199,207,214,220,225,229,233],[149,171,189,206,221,234,244,253,260,267,273,278,283,287,291],[216,236,253,268,281,292,301,309,316,322,328,334,340,345,349],[280,297,312,326,337,347,356,363,370,376,381,386,391,396,400],[340,355,368,381,391,400,408,415,421,427,432,437,442,446,450],[395,409,420,431,440,449,456,462,468,474,480,485,490,494,498],[446,458,468,478,486,494,500,507,512,517,522,527,532,536,540],[490,502,511,520,527,534,540,546,552,557,562,566,571,575,580],[531,542,550,558,564,571,577,582,587,592,597,601,605,609,613],[569,579,586,594,600,606,611,616,621,626,631,635,639,643,647]];
+const T2_HADD=9,T2_OADD=4.3,T1_HADD=9,T1_OADD=3;
+const GSOL=[0,2800,2370,1990,1670,1400,1180,1000,830,690,550,420,290,180,110];
+const LRATE=[0,1,1,1,.92,.79,.67,.56,.45,.35,.27,.20,.14,.09,.05];
+
+/* 公式ライプニッツ係数（cumsum→ROUNDDOWN4桁。3-4.損害算定.xlsx・裁判所表と一致） */
+function buildLeib(r){const a=[0];let c=0;for(let n=1;n<=67;n++){c+=Math.pow(1/(1+r),n);a[n]=Math.floor(c*10000)/10000;}return a;}
+const LEIB3=buildLeib(0.03),LEIB5=buildLeib(0.05);
+function leib(years,ratePct){const t=(ratePct===5)?LEIB5:LEIB3;const y=Math.max(0,Math.min(67,Math.round(years)));return t[y]||0;}
+
+/* 別表から入通院慰謝料（万円）。月数・補間・超過加算 */
+function getSol(hM,oM,tbl,ha,oa){const mh=tbl.length-1,mo=tbl[0].length-1;const hc=Math.min(hM,mh),oc=Math.min(oM,mo);const hf=Math.floor(hc),hC=Math.min(Math.ceil(hc),mh),of=Math.floor(oc),oC=Math.min(Math.ceil(oc),mo);const hfr=hc-hf,ofr=oc-of;const v=tbl[hf][of]*(1-hfr)*(1-ofr)+tbl[hf][oC]*(1-hfr)*ofr+tbl[hC][of]*hfr*(1-ofr)+tbl[hC][oC]*hfr*ofr;const he=Math.max(0,hM-mh),oe=Math.max(0,oM-mo);return v+he*ha+oe*oa;}/*精密値(万円)*/
+
+/* ===================================================================
+   賃金センサス（円/年・全年齢学歴計） 出典：賃金構造基本統計調査
+=================================================================== */
+const DEF_CENSUS=[
+ {label:'R7（2025）',male:6107000,female:4370700,both:5455600,note:'全年齢平均'},
+ {label:'R6（2024）',male:5908100,female:4194400,both:5269900,note:'全年齢平均'},
+ {label:'R5（2023）',male:5698200,female:3996500,both:5069400,note:'全年齢平均'},
+ {label:'R4（2022）',male:5549100,female:3943500,both:4965700,note:'全年齢平均'},
+ {label:'R3（2021）',male:5464200,female:3859400,both:4893100,note:'全年齢平均'},
+ {label:'R2（2020）',male:5459500,female:3819200,both:4872900,note:'全年齢平均'},
+ {label:'R1（2019）',male:5609700,female:3880100,both:5006900,note:'全年齢平均'}
+];
+function loadCensus(){try{return JSON.parse(localStorage.getItem('jiko_census_v3'))||DEF_CENSUS;}catch(e){return DEF_CENSUS;}}
+let census=loadCensus();
+function buildCensusSel(){const s=document.getElementById('f_censusYear');const pv=s.value;s.innerHTML='<option value="">（手入力）</option>';census.forEach((c,i)=>{s.innerHTML+=`<option value="${i}">${c.label} 男${Math.round(c.male/10000)}万/女${Math.round(c.female/10000)}万</option>`;});s.value=pv||'';}
+
+/* ===================================================================
+   入力ヘルパー
+=================================================================== */
+const $=id=>document.getElementById(id);
+const val=id=>$(id).value;
+const num=id=>parseFloat($(id).value)||0;
+const int=id=>parseInt($(id).value)||0;
+function fmt(v){return Math.round(v).toLocaleString('ja-JP');}
+function yen(v){return fmt(v)+'円';}
+function man(v){return v+'万円';}
+function md(days){const m=Math.floor(days/30),d=Math.round(days-m*30);if(m<=0)return `${d}日`;return d>0?`${m}ヶ月${d}日`:`${m}ヶ月`;}  /* 30日=1ヶ月 */
+
+function onAccDate(){detectRate();onDates();}
+function detectRate(){const d=val('f_accDate');const h=$('rateHint');if(!d){h.textContent='';return;}const acc=new Date(d),b=new Date('2020-04-01');if(acc>=b){h.innerHTML='<span class="badge-3">年利3%（R2.4.1以降）</span>';$('f_rate').value='3';}else{h.innerHTML='<span class="badge-5">年利5%（R2.3.31以前）</span>';$('f_rate').value='5';}onInput();}
+function onDates(){const f=val('f_accDate'),l=val('f_fixDate');if(f&&l){const d1=new Date(f),d2=new Date(l);if(d2>=d1){const days=Math.round((d2-d1)/86400000);$('f_omonths').value=days;$('omHint').textContent=`自動：${days}日（${md(days)}）`;}}onInput();}
+function onMonthsManual(){const d=num('f_omonths');$('omHint').textContent=d>0?`${d}日＝${md(d)}`:'手動入力中';onInput();}
+function onAge(){const a=int('f_age');if(a>0&&val('f_grade')!=='0')$('f_workYears').value=Math.max(0,67-a);onInput();}
+function onGrade(){const g=int('f_grade');$('gradeFields').style.display=g>0?'block':'none';if(g>0){$('f_lossRate').value=Math.round(LRATE[g]*100);const a=int('f_age');if(a>0)$('f_workYears').value=Math.max(0,67-a);$('grade14hint').style.display=(g>=12)?'block':'none';}onInput();}
+function censusPick(c){const w=val('f_work'),g=val('f_gender');if(w==='homemaker')return c.female;if(w==='student')return c.both;return g==='male'?c.male:(g==='female'?c.female:c.both);}
+function onIncomeBasis(){
+  const w=val('f_work'),yi=val('f_censusYear');
+  const hint=$('incomeHint');
+  // 年度を選んだときだけ自動入力（既定は空欄＝ノイズ回避）
+  if(yi!==''){const c=census[parseInt(yi)];if(c)$('f_income').value=censusPick(c);}
+  // プレースホルダで目安だけ表示（値は入れない）
+  const c0=census[0];
+  const lbl=w==='homemaker'?'女性全年齢':w==='student'?'男女計':(val('f_gender')==='male'?'男性全年齢':val('f_gender')==='female'?'女性全年齢':'男女計');
+  const sug=c0?censusPick(c0):0;
+  $('f_income').placeholder=(w!=='none'&&sug)?`例 ${sug.toLocaleString()}（${lbl}・年度選択で自動入力）`:'金額（円）';
+  hint.textContent=w==='homemaker'?'家事従事者＝女性全年齢。年度を選ぶと自動入力／直接入力も可。'
+    :w==='student'?'年少者・学生＝全年齢平均（男女計）。年度を選ぶと自動入力。'
+    :w==='none'?'無職等。基礎収入は個別に入力（逸失利益なしなら空欄）。'
+    :'給与・事業所得者は実収入（事故前年）を入力。センサスは参考。';
+  onInput();
+}
+
+/* 当事者表記（交渉=依頼者/相手方、訴訟=原告/被告） */
+function partyLabels(suit){return suit?{p:'原告',d:'被告'}:{p:'依頼者',d:'相手方'};}
+
+/* 事案区分（傷害／後遺障害／死亡） */
+function onCaseType(){
+  const t=val('f_caseType');
+  $('secKoui').style.display=(t==='koui')?'':'none';
+  $('secShibo').style.display=(t==='shibo')?'':'none';
+  if(t==='shibo'){if(!$('f_shiboSol').value)onShiboStatus();const a=int('f_age');if(a>0&&!$('f_shiboYears').value)$('f_shiboYears').value=Math.max(0,67-a);}
+  onInput();
+}
+function onShiboStatus(){
+  const m={pillar:[28000000,35],spouse:[25000000,30],other_m:[23000000,50],other_f:[23000000,30]}[val('f_shiboStatus')]||[23000000,30];
+  $('f_shiboSol').value=m[0];$('f_seikatsu').value=m[1];onInput();
+}
+
+/* 休業損害：方式切替・期間別逓減 */
+let TAPER=[{days:30,rate:100},{days:60,rate:50},{days:90,rate:30}];
+function onRestMethod(){
+  const m=val('f_restMethod');
+  $('restDaysWrap').style.display=m==='days'?'block':'none';
+  $('restRateWrap').style.display=m==='rate'?'block':'none';
+  $('restTaperWrap').style.display=m==='taper'?'block':'none';
+  if(m==='taper')renderTaper();
+  onInput();
+}
+function renderTaper(){
+  const b=$('taperBody');if(!b)return;b.innerHTML='';
+  TAPER.forEach((s,i)=>{
+    b.innerHTML+=`<tr><td style="color:var(--muted)">区間${i+1}</td>`
+      +`<td><input type="number" value="${s.days}" style="width:100%;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px" oninput="TAPER[${i}].days=parseFloat(this.value)||0;onInput()"></td>`
+      +`<td><input type="number" value="${s.rate}" style="width:100%;border:1px solid var(--border);border-radius:3px;padding:2px 4px;font-size:11px" oninput="TAPER[${i}].rate=parseFloat(this.value)||0;onInput()"></td>`
+      +`<td><button class="del-x" onclick="delTaper(${i})">✕</button></td></tr>`;
+  });
+}
+function addTaper(){TAPER.push({days:30,rate:20});renderTaper();onInput();}
+function delTaper(i){TAPER.splice(i,1);renderTaper();onInput();}
+function getTaperSegs(){return TAPER.filter(s=>s.days>0);}
+function seedTaperFromPeriod(){
+  const total=Math.round(num('f_omonths'));
+  if(total<=0){alert('通院期間（日数）を入力してください。');return;}
+  const s1=Math.min(30,total),rem=total-s1;
+  TAPER=[{days:s1,rate:100}];
+  if(rem>0){const h=Math.round(rem/2);TAPER.push({days:h,rate:50});if(rem-h>0)TAPER.push({days:rem-h,rate:30});}
+  renderTaper();onInput();
+}
+
+/* ===================================================================
+   計算
+=================================================================== */
+let MODEL=null;
+const MANUAL={opp:{},memo:{},ours:{},oppAuto:{}};   // 手編集（行キー→値）／oppAuto=OCR自動取込（要照合）
+
+function compute(){
+  const caseType=val('f_caseType')||'shougai';
+  const hosp=int('f_hosp'),visits=int('f_visits');
+  let oDays=num('f_omonths');const injType=val('f_injType');  /* f_omonths は通院期間「日数」 */
+  const income=num('f_income'),restDays=int('f_restDays');
+  const grade=int('f_grade');const lossRate=(num('f_lossRate')||0)/100;
+  const workYears=int('f_workYears')||Math.max(0,67-(int('f_age')||35));
+  const rate=int('f_rate')||3;
+  const medical=num('f_medical'),paid=num('f_paid'),fault=num('f_fault');
+  const tsukisoi=num('f_tsukisoi');
+  const zappi=$('f_zappi').value!==''?num('f_zappi'):Math.round(1500*hosp);
+  const other=num('f_other');
+  const km=num('f_km'),trips=int('f_trips')||visits,kmrate=num('f_kmrate')||15;
+  const kotsu=Math.round(km*2*trips*kmrate);
+  // むち打ち：通院期間を実通院日数×3.5で補正（赤い本）
+  let effODays=oDays,whip='';
+  if(injType==='w'&&visits>0){const cap=Math.round(visits*3.5);if(cap<oDays){effODays=cap;whip=`通院期間${oDays}日→実通院${visits}日×3.5＝${cap}日で補正`;}}
+  // 入通院慰謝料（30日=1ヶ月・日割り・端数まで）
+  const hM=hosp/30, oM=effODays/30;
+  let tbl,tlabel,hadd,oadd;
+  if(injType==='1'){tbl=T1;tlabel='赤い本別表I';hadd=T1_HADD;oadd=T1_OADD;}
+  else{tbl=T2;tlabel=injType==='w'?'赤い本別表II（むち打ち補正後）':'赤い本別表II';hadd=T2_HADD;oadd=T2_OADD;}
+  const solManP=getSol(hM,oM,tbl,hadd,oadd);
+  const sol=Math.round(solManP*10000);
+  let solMemo;{
+    const parts=[];if(hosp>0)parts.push(`入院${md(hosp)}`);parts.push(`通院${md(effODays)}`);
+    solMemo=`${tlabel}　${parts.join('・')}＝${fmt(sol)}円`;
+    if(hosp===0){
+      const maxO=tbl[0].length-1, mi=Math.min(Math.floor(oM),maxO), rem=Math.round(effODays-mi*30);
+      if(rem>0&&mi<maxO){const lo=tbl[0][mi],hi=tbl[0][mi+1];solMemo=`${tlabel}　通院${md(effODays)}＝${mi}ヶ月分${lo}万円＋（${mi+1}ヶ月分${hi}万円−${lo}万円）×${rem}日÷30＝${fmt(sol)}円`;}
+    }
+    if(whip)solMemo+=`　※${whip}`;
+  }
+  // 休業損害（3方式）
+  const daily=income/365;
+  const restMethod=val('f_restMethod')||'days';
+  let rest=0,restMemo='';
+  if(restMethod==='rate'){
+    const pdays=int('f_restPeriodDays')||oDays;
+    const rr=(num('f_restRate')||30)/100;
+    rest=Math.round(daily*pdays*rr);
+    restMemo=pdays>0?`一律制限率方式：基礎日額${fmt(daily)}円×通院期間${pdays}日×制限率${Math.round(rr*100)}%＝${fmt(rest)}円`:'';
+  }else if(restMethod==='taper'){
+    const segs=getTaperSegs();let dr=0;const parts=[];
+    segs.forEach(s=>{dr+=s.days*s.rate/100;parts.push(`${s.days}日×${s.rate}%`);});
+    rest=Math.round(daily*dr);
+    restMemo=segs.length?`期間別逓減方式：基礎日額${fmt(daily)}円×（${parts.join('＋')}）＝${fmt(rest)}円`:'';
+  }else{
+    rest=Math.round(daily*restDays);
+    restMemo=restDays>0?`実通院日数方式：基礎収入${fmt(income)}円÷365＝日額${fmt(daily)}円×休業${restDays}日＝${fmt(rest)}円`:'';
+  }
+
+  // 逸失利益
+  const lb=leib(workYears,rate);
+  const lost=grade>0?Math.round(income*lossRate*lb):0;
+  const gsol=grade>0?GSOL[grade]*10000:0;
+
+  // 行モデル
+  const shougai=[];
+  shougai.push(row('chiryo','治療費',medical,medical>0?'実費':''));
+  shougai.push(row('kotsu','通院交通費',kotsu,kotsu>0?`片道${km}km×往復2×${trips}回×${kmrate}円/km`:''));
+  shougai.push(row('tsukisoi','入通院付添費',tsukisoi,''));
+  shougai.push(row('kyugyo','休業損害',rest,restMemo));
+  shougai.push(row('isharyo','入通院慰謝料',sol,solMemo));
+  shougai.push(row('zappi','入院雑費',zappi,zappi>0?`1,500円×入院${hosp}日`:''));
+  shougai.push(row('other','その他',other,other>0?'事故証明書料等':''));
+
+  const koui=[];
+  if(caseType==='koui'&&grade>0){
+    koui.push(row('koui_sol','後遺障害慰謝料',gsol,`赤い本基準　第${grade}級＝${man(GSOL[grade])}`));
+    koui.push(row('koui_lost','後遺障害逸失利益',lost,`基礎収入${fmt(income)}円×喪失率${Math.round(lossRate*100)}%×ライプニッツ${lb.toFixed(4)}（${workYears}年・年利${rate}%）＝${fmt(lost)}円`));
+  }
+  // 死亡
+  const shibo=[];
+  if(caseType==='shibo'){
+    const sy=int('f_shiboYears')||Math.max(0,67-(int('f_age')||40));
+    const sk=(num('f_seikatsu')||30)/100;
+    const slb=leib(sy,rate);
+    const shiboLost=Math.round(income*(1-sk)*slb);
+    const funeral=$('f_funeral').value!==''?num('f_funeral'):1500000;
+    const statusName={pillar:'一家の支柱',spouse:'配偶者・母親',other_m:'独身男性等',other_f:'独身女性等'}[val('f_shiboStatus')]||'';
+    if(funeral>0)shibo.push(row('funeral','葬儀費用',funeral,'原則150万円（赤い本）'));
+    shibo.push(row('shibo_sol','死亡慰謝料',num('f_shiboSol'),`赤い本基準（${statusName}）`));
+    shibo.push(row('shibo_lost','死亡逸失利益',shiboLost,`基礎収入${fmt(income)}円×(1−生活費控除率${Math.round(sk*100)}%)×ライプニッツ${slb.toFixed(4)}（${sy}年・年利${rate}%）＝${fmt(shiboLost)}円`));
+  }
+  const sumShibo=shibo.reduce((a,r)=>a+oursOf(r),0);
+
+  // 物損
+  const butsu=[];let zenson=false;
+  if($('f_incButsu').checked){
+    const jika=num('f_jika'),shuri=num('f_shuri'),kaikae=num('f_kaikae');
+    zenson=(shuri>0&&jika>0&&shuri>jika+kaikae);
+    if(jika>0||shuri>0){
+      let vehicle,vlabel;
+      if(zenson){vehicle=jika;vlabel=`経済的全損→時価額採用（修理費${fmt(shuri)}円＞時価額${fmt(jika)}＋買替諸費用${fmt(kaikae)}）`;}
+      else if(shuri>0){vehicle=shuri;vlabel=`修理費（修理費${fmt(shuri)}円≦時価額${fmt(jika)}＋買替諸費用${fmt(kaikae)}）`;}
+      else{vehicle=jika;vlabel='車両時価額';}
+      butsu.push(row('veh','車両損害',vehicle,vlabel));
+    }
+    if(zenson&&num('f_kaikae')>0)butsu.push(row('kaikae','買替諸費用',num('f_kaikae'),'登録・車庫証明・廃車費用等（全損時）'));
+    const add=(id,key,name,memo)=>{const v=num(id);if(v>0)butsu.push(row(key,name,v,memo||''));};
+    add('f_hyoka','hyoka','評価損','格落損');add('f_daisha','daisha','代車料','');add('f_rekka','rekka','レッカー代','');add('f_kyusha','kyusha','休車損害','');add('f_butsuOther','butsuOther','その他物損','');
+  }
+  const sumButsu=butsu.reduce((a,r)=>a+oursOf(r),0);
+
+  // 物損のみ（人損データなし）の場合は人損費目を非表示
+  const hasJinson=(medical>0||rest>0||sol>0||tsukisoi>0||zappi>0||kotsu>0||other>0||grade>0||hosp>0||visits>0||oDays>0);
+  if($('f_incButsu').checked&&!hasJinson)shougai.length=0;
+
+  const sumShougai=shougai.reduce((a,r)=>a+oursOf(r),0);
+  const sumKoui=koui.reduce((a,r)=>a+oursOf(r),0);
+  const total=sumShougai+sumKoui+sumShibo+sumButsu;
+  const faultCut=Math.round(total*fault/100);
+  const afterFault=total-faultCut;
+  const claim=Math.round(afterFault-paid);
+
+  MODEL={shougai,koui,shibo,butsu,caseType,grade,sumShougai,sumKoui,sumShibo,sumButsu,zenson,total,fault,faultCut,afterFault,paid,claim,
+    meta:{hosp,visits,oDays,effODays,injType,tlabel,income,daily,restDays,restMemo,restMethod,grade,lossRate,workYears,rate,lb,solManP,sol,solMemo,gsol,lost,whip,km,trips,kmrate,kotsu,age:int('f_age')}};
+  return MODEL;
+}
+function row(key,name,ours,memo){return {key,name,ours,memo};}
+function oursOf(r){return MANUAL.ours[r.key]!==undefined&&MANUAL.ours[r.key]!==''?(parseFloat(MANUAL.ours[r.key])||0):r.ours;}
+function memoOf(r){return MANUAL.memo[r.key]!==undefined?MANUAL.memo[r.key]:r.memo;}
+function oppOf(r){return MANUAL.opp[r.key]!==undefined?MANUAL.opp[r.key]:'';}
+
+/* ===================================================================
+   描画
+=================================================================== */
+function render(){
+  compute();
+  const suit=document.body.classList.contains('mode-suit');
+  $('docTitle').textContent=suit?'別紙　損害額計算書':'損害賠償額の提示';
+  const body=$('dmgBody');body.innerHTML='';
+  const drawGroup=(label,rows)=>{
+    if(suit&&label)body.innerHTML+=`<tr class="grp"><td colspan="4">${label}</td></tr>`;
+    rows.forEach(r=>{
+      body.innerHTML+=`<tr data-k="${r.key}">
+        <td class="name">${r.name}</td>
+        <td class="num col-opp"><input class="cell${MANUAL.oppAuto[r.key]?' auto-opp':''}" data-opp="${r.key}" value="${oppOf(r)}" title="${MANUAL.oppAuto[r.key]?'OCR自動取込・要照合（原典と必ず確認）':''}" oninput="onOpp('${r.key}',this.value)"></td>
+        <td class="num"><input class="cell" data-ours="${r.key}" value="${fmt(oursOf(r))}" oninput="onOurs('${r.key}',this.value)"></td>
+        <td><textarea class="memo" data-memo="${r.key}" oninput="onMemo('${r.key}',this.value)">${esc(memoOf(r))}</textarea></td>
+      </tr>`;
+    });
+  };
+  drawGroup(suit&&(MODEL.koui.length||MODEL.butsu.length||MODEL.shibo.length)?'【傷害部分】':(suit?'【人的損害】':''),MODEL.shougai);
+  if(MODEL.koui.length)drawGroup('【後遺障害部分】',MODEL.koui);
+  if(MODEL.shibo.length)drawGroup('【死亡部分】',MODEL.shibo);
+  if(MODEL.butsu.length)drawGroup('【物的損害】',MODEL.butsu);
+  // 全損判定インジケータ
+  const zi=$('zensonInd');
+  if($('f_incButsu').checked&&(num('f_jika')>0||num('f_shuri')>0)){zi.style.display='block';zi.innerHTML=MODEL.zenson?'<span class="badge-5">経済的全損</span> 時価額を採用':'<span class="badge-3">分損</span> 修理費を採用';}
+  else zi.style.display='none';
+
+  // 集計
+  const oppSum=sumOpp();
+  const base=MODEL.afterFault-MODEL.paid;
+  const benRate=(num('f_benRate')||0)/100;
+  const bengoshi=suit?Math.round(base*benRate):0;
+  const finalClaim=base+bengoshi;
+  const f=$('dmgFoot');f.innerHTML='';
+  f.innerHTML+=footRow('損害額合計',oppSum.total,MODEL.total,'total');
+  if(MODEL.fault>0)f.innerHTML+=footRow(`過失相殺（被害者${MODEL.fault}%）`,'',-MODEL.faultCut,'');
+  f.innerHTML+=footRow('既払金',oppPaid(),-MODEL.paid,'');
+  if(suit&&bengoshi>0)f.innerHTML+=footRow(`弁護士費用（${Math.round(benRate*100)}%）`,'',bengoshi,'');
+  f.innerHTML+=footRow(suit?'認容額（請求額）':'請求額',oppSum.total-oppPaid(),finalClaim,'claim');
+  renderKo();renderGaiyo();autosave();
+}
+function footRow(label,opp,ours,cls){
+  const oppCell=(opp===''||opp===undefined)?'':fmt(opp);
+  return `<tr class="${cls}"><td class="name">${label}</td><td class="num col-opp">${oppCell}</td><td class="num">${fmt(ours)}</td><td></td></tr>`;
+}
+function sumOpp(){let t=0;[...MODEL.shougai,...MODEL.koui,...MODEL.shibo,...MODEL.butsu].forEach(r=>{const v=parseFloat(MANUAL.opp[r.key]);if(!isNaN(v))t+=v;});return {total:t};}
+function oppPaid(){const v=parseFloat(MANUAL.opp['__paid']);return isNaN(v)?0:v;}
+
+function onOpp(k,v){MANUAL.opp[k]=v;if(MANUAL.oppAuto[k]){delete MANUAL.oppAuto[k];const el=document.querySelector(`input[data-opp="${k}"]`);if(el){el.classList.remove('auto-opp');el.title='';}}quickTotals();autosave();}
+function onOurs(k,v){MANUAL.ours[k]=v.replace(/[^0-9.-]/g,'');render();}
+function onMemo(k,v){MANUAL.memo[k]=v;autosave();}
+function quickTotals(){render();}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* 計算の根拠 */
+function renderKo(){
+  const m=MODEL.meta;const L=[];
+  if(MODEL.shougai.length){
+  L.push('<h4>１　傷害部分</h4>');
+  L.push(`治療費：${yen(oursByKey('chiryo'))}（実費）`);
+  if(m.kotsu)L.push(`通院交通費：片道${m.km}km×往復2×${m.trips}回×${m.kmrate}円/km＝${yen(m.kotsu)}`);
+  if(m.restMemo)L.push('休業損害：'+m.restMemo);
+  if(m.solMemo)L.push('入通院慰謝料：'+m.solMemo);
+  }
+  if(MODEL.koui.length){
+    L.push('<h4>２　後遺障害部分（第'+MODEL.grade+'級）</h4>');
+    L.push(`後遺障害慰謝料：赤い本基準＝${man(GSOL[MODEL.grade])}`);
+    L.push(`逸失利益：基礎収入${yen(m.income)}×喪失率${Math.round(m.lossRate*100)}%×ライプニッツ係数${m.lb.toFixed(4)}（就労可能${m.workYears}年・年利${m.rate}%）＝${yen(m.lost)}`);
+  }
+  if(MODEL.shibo.length){
+    L.push('<h4>死亡部分</h4>');
+    MODEL.shibo.forEach(r=>L.push(`${r.name}：${yen(oursOf(r))}${memoOf(r)?'　'+memoOf(r):''}`));
+  }
+  if(MODEL.butsu.length){
+    L.push('<h4>物的損害</h4>');
+    if(MODEL.zenson)L.push('車両損害は<b>経済的全損</b>（修理費＞時価額＋買替諸費用）のため時価額を採用。');
+    MODEL.butsu.forEach(r=>L.push(`${r.name}：${yen(oursOf(r))}${memoOf(r)?'　'+memoOf(r):''}`));
+  }
+  const suitKo=document.body.classList.contains('mode-suit');
+  const baseKo=MODEL.afterFault-MODEL.paid;
+  const benRateKo=(num('f_benRate')||0)/100;
+  const bengoshiKo=suitKo?Math.round(baseKo*benRateKo):0;
+  L.push('<h4>集計</h4>');
+  L.push(`損害額合計　${yen(MODEL.total)}`);
+  if(MODEL.fault>0)L.push(`過失相殺（被害者${MODEL.fault}%）　△${yen(MODEL.faultCut)}　→　${yen(MODEL.afterFault)}`);
+  L.push(`既払金　△${yen(MODEL.paid)}`);
+  if(suitKo&&bengoshiKo>0)L.push(`弁護士費用（${Math.round(benRateKo*100)}%）　＋${yen(bengoshiKo)}`);
+  L.push(`<b>${suitKo?'認容額':'請求額'}（概算）　${yen(baseKo+bengoshiKo)}</b>`);
+  if(suitKo)L.push('<span style="color:var(--muted)">※遅延損害金（事故日から年3%）は別途。</span>');
+  $('koBlock').innerHTML=L.join('<br>');
+}
+function oursByKey(k){const r=[...MODEL.shougai,...MODEL.koui,...MODEL.shibo,...MODEL.butsu].find(x=>x.key===k);return r?oursOf(r):0;}
+
+/* 事案の概要 */
+function renderGaiyo(){
+  const m=MODEL.meta;const g=val('f_genkoku'),h=val('f_hikoku'),taiyo=val('f_taiyo'),sho=val('f_shobyo');
+  const PL=partyLabels(document.body.classList.contains('mode-suit'));
+  let keika=val('f_keika');
+  if(!keika){
+    const parts=[];if(m.hosp)parts.push(`入院${md(m.hosp)}`);if(m.oDays)parts.push(`通院${md(m.oDays)}（実通院${m.visits}日）`);
+    keika=parts.join('、')+(val('f_fixDate')?`、${jpDate(val('f_fixDate'))}症状固定`:'');
+  }
+  const L=[];
+  L.push('<h4>事案の概要</h4>');
+  L.push(`１　当事者　${PL.p}：${g||'（　）'}　／　${PL.d}：${h||'（　）'}`);
+  L.push(`２　事故　${val('f_accDate')?jpDate(val('f_accDate')):'（日時）'}　${taiyo||'（事故態様）'}`);
+  L.push(`３　傷害　${sho||'（傷病名）'}`);
+  L.push(`４　治療経過　${keika||'（経過）'}`);
+  if(MODEL.grade>0)L.push(`５　後遺障害　第${MODEL.grade}級（労働能力喪失率${Math.round(m.lossRate*100)}%）`);
+  $('gaiyoBlock').innerHTML=L.join('<br>');
+}
+function jpDate(s){if(!s)return'';const d=new Date(s);const y=d.getFullYear();let era='令和',ey=y-2018;if(y<2019){era='平成';ey=y-1988;}return `${era}${ey===1?'元':ey}年${d.getMonth()+1}月${d.getDate()}日`;}
+
+/* ===================================================================
+   モード・タブ・トグル
+=================================================================== */
+function setMode(m){document.body.classList.toggle('mode-suit',m==='suit');document.body.classList.toggle('mode-nego',m==='nego');document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));if(m==='suit')$('secGaiyo').open=true;render();autosave();}
+function toggleOpp(){document.body.classList.toggle('no-opp',!$('showOpp').checked);autosave();}
+function rtab(t){document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('on'));$('pane_'+t).classList.add('on');const idx={list:0,ko:1,gaiyo:2}[t];document.querySelectorAll('.rtab')[idx].classList.add('on');}
+function onInput(){render();}
+
+/* ===================================================================
+   距離（OSM Nominatim + OSRM・無料/キー不要）
+=================================================================== */
+async function geocode(q){const u='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q);const r=await fetch(u,{headers:{'Accept-Language':'ja'}});const j=await r.json();if(!j.length)throw new Error('住所が見つかりません：'+q);return [parseFloat(j[0].lon),parseFloat(j[0].lat)];}
+async function fetchDistance(){
+  const home=val('f_home'),hosp=val('f_hosp_addr');const out=$('distOut');out.className='dist-out on';
+  if(!home||!hosp){out.textContent='自宅住所と通院先を入力してください。';return;}
+  out.textContent='距離を取得中…';
+  try{
+    const a=await geocode(home);await new Promise(r=>setTimeout(r,1100));const b=await geocode(hosp);
+    const u=`https://router.project-osrm.org/route/v1/driving/${a[0]},${a[1]};${b[0]},${b[1]}?overview=false`;
+    const r=await fetch(u);const j=await r.json();
+    if(!j.routes||!j.routes.length)throw new Error('経路が取得できません');
+    const km=Math.round(j.routes[0].distance/100)/10;
+    $('f_km').value=km;onInput();
+    out.innerHTML=`✅ 片道 約 <b>${km}km</b>（自動車・OSM経路）。必要に応じ修正してください。`;
+  }catch(e){out.innerHTML='取得失敗：'+e.message+'<br>「Googleマップで確認」から手入力してください。';}
+}
+function openGmaps(){const home=encodeURIComponent(val('f_home')),hosp=encodeURIComponent(val('f_hosp_addr'));window.open(`https://www.google.com/maps/dir/?api=1&origin=${home}&destination=${hosp}&travelmode=driving`,'_blank');}
+
+/* 物損：中古車検索（規約順守のためGoogleサイト内検索で掲載ページを開く→各自でPDF保存） */
+function carKeyword(){const a=[val('f_carMaker'),val('f_carModel'),val('f_carYear')].filter(Boolean);const ml=num('f_mileage');let s=a.join(' ');if(ml)s+=' '+(Math.round(ml/1000)/10)+'万km';return s.trim();}
+function openCarsensor(){const k=carKeyword();if(!k){alert('車名・車種・年式のいずれかを入力してください。');return;}window.open('https://www.google.com/search?q='+encodeURIComponent(k+' 中古 site:carsensor.net'),'_blank');}
+function openGoonet(){const k=carKeyword();if(!k){alert('車名・車種・年式のいずれかを入力してください。');return;}window.open('https://www.google.com/search?q='+encodeURIComponent(k+' 中古 site:goo-net.com'),'_blank');}
+
+/* ===================================================================
+   資料テキスト解析（ローカル完結）
+=================================================================== */
+function _iso(y,m,d){y=parseInt(y);m=parseInt(m);d=parseInt(d);if(!y||!m||!d)return null;return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function _ery(era,n){n=(n==='元')?1:parseInt(n);if(era==='令和')return 2018+n;if(era==='平成')return 1988+n;if(era==='昭和')return 1925+n;return n;}
+const _EM={'令和':'令和','令':'令和','R':'令和','平成':'平成','平':'平成','H':'平成','昭和':'昭和','昭':'昭和','S':'昭和'};
+function pDate(s){let m=s.match(/(令和|平成|昭和|令|平|昭|R|H|S)\s*(元|\d{1,2})\s*[年\.\-\/]\s*(\d{1,2})\s*[月\.\-\/]\s*(\d{1,2})/);if(m)return _iso(_ery(_EM[m[1]],m[2]),m[3],m[4]);m=s.match(/((?:19|20)\d{2})\s*[年\.\-\/]\s*(\d{1,2})\s*[月\.\-\/]\s*(\d{1,2})/);if(m)return _iso(m[1],m[2],m[3]);return null;}
+function fDate(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0){const d=pDate(t.slice(i,i+45));if(d)return d;f=i+k.length;}}return null;}
+function allD(s){const re=/(令和|平成|昭和|令|平|昭|R|H|S)\s*(元|\d{1,2})\s*[年\.\-\/]\s*(\d{1,2})\s*[月\.\-\/]\s*(\d{1,2})|((?:19|20)\d{2})\s*[年\.\-\/]\s*(\d{1,2})\s*[月\.\-\/]\s*(\d{1,2})/g;const r=[];let m;while((m=re.exec(s))){r.push(m[1]?_iso(_ery(_EM[m[1]],m[2]),m[3],m[4]):_iso(m[5],m[6],m[7]));}return r.filter(Boolean);}
+function dBefore(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0){const ds=allD(t.slice(Math.max(0,i-30),i));if(ds.length)return ds[ds.length-1];f=i+k.length;}}return null;}
+function fNum(t,re){const m=t.match(re);return m?parseInt(m[1]):null;}
+function loadDocFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('docText').value=r.result;parseDoc();};r.readAsText(f,'UTF-8');e.target.value='';}
+function rangeAfter(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0){const ds=allD(t.slice(i,i+70));if(ds.length>=2)return [ds[0],ds[ds.length-1]];f=i+k.length;}}return null;}
+function parseDoc(){
+  const raw=$('docText').value;if(!raw.trim()){alert('資料テキストを貼り付けてください。');return;}
+  const t=raw.normalize('NFKC');  /* 全角数字・記号を半角化（保険会社書面・OCR対策） */
+  const found=[];
+  // 事故発生日・症状固定日
+  let acc=fDate(t,['事故発生日時','事故発生日','事故年月日','事故日','発生日時','発生日','受傷日']);if(!acc)acc=dBefore(t,['事故','受傷']);
+  let fix=fDate(t,['症状固定日','症状固定','治癒日','治癒','最終通院日','治療終了日','治療終了']);
+  // 入院日数
+  const hosp=fNum(t,/入院(?:日数|期間)?[^0-9]{0,8}(\d{1,3})\s*日/);if(hosp!=null){$('f_hosp').value=hosp;found.push(['入院日数',hosp+'日']);}
+  // 実通院日数
+  let v=fNum(t,/(?:実通院日数|通院実日数|実治療日数|実日数)[^0-9]{0,8}(\d{1,3})\s*日?/);if(v==null)v=fNum(t,/通院[^0-9期間治実]{0,4}(\d{1,3})\s*日/);if(v!=null){$('f_visits').value=v;found.push(['実通院日数',v+'日']);}
+  // 通院（治療）期間：明示日数→月数→日付範囲→事故〜固定
+  let periodDays=null;
+  {const rg=rangeAfter(t,['治療期間','入通院期間','通院期間','治療','入通院']);if(rg){const d=Math.round((new Date(rg[1])-new Date(rg[0]))/86400000);if(d>0){periodDays=d;if(!acc)acc=rg[0];if(!fix)fix=rg[1];}}}
+  if(periodDays==null)periodDays=fNum(t,/(?:総治療(?:期間|日数|日)?|入通院期間|通院期間|治療期間日数|治療期間)[^0-9]{0,8}(\d{1,3})\s*日/);
+  if(periodDays==null){const omx=fNum(t,/(?:通院|治療)(?:期間)?[^0-9]{0,6}(\d{1,2})\s*(?:[かヶケ]月|箇月)/);if(omx!=null)periodDays=omx*30;}
+  if(periodDays==null&&acc&&fix){const d=Math.round((new Date(fix)-new Date(acc))/86400000);if(d>0)periodDays=d;}
+  if(acc){$('f_accDate').value=acc;found.push(['事故発生日',acc]);}
+  if(fix){$('f_fixDate').value=fix;found.push(['症状固定日',fix]);}
+  if(periodDays!=null){$('f_omonths').value=periodDays;$('omHint').textContent=`${periodDays}日＝${md(periodDays)}`;found.push(['通院期間',periodDays+'日（'+md(periodDays)+'）']);}
+  // 年齢
+  const age=fNum(t,/(\d{1,3})\s*歳/);if(age!=null){$('f_age').value=age;found.push(['年齢',age+'歳']);}
+  // 後遺障害等級
+  let g=fNum(t,/後遺障害[^0-9級]{0,12}第?\s*(\d{1,2})\s*級/);if(g==null)g=fNum(t,/併合[^0-9級]{0,6}第?\s*(\d{1,2})\s*級/);if(g==null)g=fNum(t,/第\s*(\d{1,2})\s*級/);
+  if(g!=null&&g>=1&&g<=14){$('f_grade').value=String(g);$('f_caseType').value='koui';found.push(['後遺障害等級','第'+g+'級']);}
+  // 既払金（カンマ込み）
+  const pm=t.match(/(?:既払(?:金|額)?|内払(?:金)?|お?支払(?:済)?(?:額)?|既にお支払(?:い)?(?:済)?(?:額)?)[^0-9]{0,10}([0-9,]{3,12})/);
+  if(pm){const paid=parseInt(pm[1].replace(/,/g,''));if(paid>0){$('f_paid').value=paid;found.push(['既払金',paid.toLocaleString()+'円']);}}
+  // 過失割合
+  const fa=fNum(t,/(?:被害者|当方|貴方)?過失(?:割合|相殺)?[^0-9]{0,6}(\d{1,2})\s*%/);if(fa!=null){$('f_fault').value=fa;found.push(['過失割合',fa+'%']);}
+  // 車検証（物損）
+  const mk=t.match(/車\s*名[\s　:：]*([ァ-ヶ一-龠A-Za-z]{2,12})/);if(mk){$('f_carMaker').value=mk[1];found.push(['車名',mk[1]]);}
+  const ct=t.match(/型\s*式[\s　:：]*([0-9A-Za-z\-]{3,20})/);if(ct){$('f_carType').value=ct[1];found.push(['型式',ct[1]]);}
+  const cy=t.match(/初度登録[^0-9令平昭]{0,6}((?:令和|平成|昭和|R|H|S)?\s*\d{1,4}\s*年(?:\s*\d{1,2}\s*月)?)/);if(cy){$('f_carYear').value=cy[1].replace(/\s/g,'');found.push(['初度登録',cy[1].replace(/\s/g,'')]);}
+  const mil=t.match(/走行距離[^0-9]{0,6}([0-9,]{1,7})\s*km/i);if(mil){$('f_mileage').value=mil[1].replace(/,/g,'');found.push(['走行距離',mil[1]+'km']);}
+  if(mk||ct||cy){$('f_incButsu').checked=true;$('secButsu').open=true;}
+  // 貴社提示額：保険会社の費目別金額を取込（OCRノイズ対策）
+  //  ① 空白除去（OCRは文字間に空白を挿入する）
+  //  ② 桁区切りは「,．。・.」を許容（OCRは「,」を「.」等に誤認する）
+  //  ③ 費目表の領域＝「損害の合計／お支払」より前だけを対象（既払・脚注の誤取得を防止）
+  MANUAL.oppAuto={};
+  const dz=t.replace(/\s+/g,'');
+  let zoneEnd=dz.length;
+  ['損害の合計','損害賠償額合計','損害賠償額の合計','今までにお支払','最終のお支払'].forEach(kw=>{const i=dz.indexOf(kw);if(i>=0&&i<zoneEnd)zoneEnd=i;});
+  const zone=dz.slice(0,zoneEnd);
+  const NUM='([0-9][0-9,．。・.]{2,})';                 // 3桁以上・区切り混在を許容
+  const sanNum=s=>parseInt(String(s).replace(/[^0-9]/g,''))||0;
+  const OPP_MAP=[
+    ['koui_sol',new RegExp('後遺(?:障害)?慰謝料.{0,6}?'+NUM)],
+    ['koui_lost',new RegExp('後遺(?:障害)?(?:逸失利益|得べかりし利益).{0,6}?'+NUM)],
+    ['kotsu',new RegExp('(?:通院)?交通費.{0,6}?'+NUM)],
+    ['tsukisoi',new RegExp('(?:入通院付添費|付添看護料|付添費|看護料).{0,6}?'+NUM)],
+    ['kyugyo',new RegExp('休業(?:損害|補償).{0,6}?'+NUM)],
+    ['isharyo',new RegExp('(?:入通院慰謝料|傷害慰謝料|傷害分慰謝料).{0,6}?'+NUM)],
+    ['zappi',new RegExp('(?:入院)?雑費.{0,6}?'+NUM)],
+    ['chiryo',new RegExp('治療(?:関係)?費.{0,6}?'+NUM)],
+    ['other',new RegExp('(?:文書料|その他費用).{0,6}?'+NUM)]
+  ];
+  let oppCount=0;
+  OPP_MAP.forEach(([k,re])=>{const m=zone.match(re);if(m){const a=sanNum(m[1]);if(a>=100){MANUAL.opp[k]=a;MANUAL.oppAuto[k]=1;oppCount++;}}});
+  if(MANUAL.opp.koui_sol||MANUAL.opp.koui_lost)$('f_caseType').value='koui';
+  // 既払金（記号付き桁区切り・空白対応）
+  const pm2=dz.match(/(?:既払(?:金|額)?|内払(?:金)?|お支払(?:済)?(?:額)?)[^0-9]{0,6}([0-9][0-9,．。・.]{3,})/);
+  if(pm2){const paid=sanNum(pm2[1]);if(paid>0){$('f_paid').value=paid;MANUAL.opp['__paid']=paid;if(!found.some(f=>f[0]==='既払金'))found.push(['既払金',paid.toLocaleString()+'円']);}}
+  else if(pm){MANUAL.opp['__paid']=parseInt(pm[1].replace(/,/g,''))||0;}
+  if(oppCount)found.push(['貴社提示額',oppCount+'費目を取込（黄色＝要照合）']);
+  // 反映（onDatesは呼ばない：上で確定したperiodDaysを保持）
+  detectRate();onGrade();onCaseType();onRestMethod();onIncomeBasis();
+  const box=$('parseResult');box.style.display='block';
+  box.innerHTML=found.length?('<b>自動入力：</b><br>'+found.map(f=>`<span class="ok">✓ ${f[0]}：${f[1]}</span>`).join('<br>')+'<br><span class="miss">※必ず原典と照合してください。スキャンPDFは読み取り精度に限界があり、貴社提示額（黄色のセル）は取りこぼし・誤りが起こり得ます。空欄・誤りは手入力してください。</span>'):'<span class="miss">抽出できる項目が見つかりませんでした。スキャンPDF（ファックス等）はOCR精度に限界があります。本文を貼り付けるか、該当箇所を直接入力してください。</span>';
+  render();
+}
+
+/* OCR */
+const OCRCDN={tess:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',pdf:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',pdfw:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'};
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error('読込失敗'));document.head.appendChild(s);});}
+function ocrStat(h,show){const e=$('ocrProgress');e.style.display=show===false?'none':'block';e.innerHTML=h;}
+async function ensTess(){if(!window.Tesseract){ocrStat('OCRエンジン取得中…（初回のみ）');await loadScript(OCRCDN.tess);}}
+async function ensPdf(){if(!window.pdfjsLib){await loadScript(OCRCDN.pdf);window.pdfjsLib.GlobalWorkerOptions.workerSrc=OCRCDN.pdfw;}}
+async function mkWorker(){await ensTess();ocrStat('日本語モデル準備中…');return await Tesseract.createWorker('jpn',1,{logger:m=>{if(m.status==='recognizing text')ocrStat('文字認識中… '+Math.round(m.progress*100)+'%');}});}
+async function runOCRFromFile(f){if(!f)return;try{let text='';if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){text=await pdfToText(f);}else{const w=await mkWorker();const{data:{text:t}}=await w.recognize(f);await w.terminate();text=t;}$('docText').value=text;parseDoc();ocrStat('✅ 読み取り完了。',true);setTimeout(()=>ocrStat('',false),4000);}catch(err){ocrStat('失敗：'+err.message+'<br>テキストを直接貼り付けてください。',true);}}
+function runOCRFile(e){const fs=e.target.files;e.target.value='';if(!fs||!fs.length)return;if(fs.length===1)runOCRFromFile(fs[0]);else handleDroppedFiles(fs);}
+function handleDroppedFile(f){
+  if(!f)return;
+  const name=f.name||'',type=f.type||'';
+  if(type==='application/pdf'||/\.pdf$/i.test(name)||type.startsWith('image/')){runOCRFromFile(f);}
+  else if(/\.(txt|md|csv)$/i.test(name)||type.startsWith('text/')){const r=new FileReader();r.onload=()=>{$('docText').value=r.result;parseDoc();};r.readAsText(f,'UTF-8');}
+  else{ocrStat('対応形式は画像・PDF・テキストです。',true);setTimeout(()=>ocrStat('',false),4000);}
+}
+// 複数ファイルをまとめて取込（OCR／テキスト）→本文を連結して一括解析
+async function handleDroppedFiles(list){
+  const arr=[...list].filter(Boolean);if(!arr.length)return;
+  if(arr.length===1){handleDroppedFile(arr[0]);return;}
+  const out=[];let worker=null;
+  try{
+    for(let i=0;i<arr.length;i++){
+      const f=arr[i],name=f.name||'',type=f.type||'';
+      ocrStat(`(${i+1}/${arr.length}) ${name} を取込中…`);
+      let txt='';
+      if(type==='application/pdf'||/\.pdf$/i.test(name)){txt=await pdfToText(f);}
+      else if(type.startsWith('image/')){if(!worker)worker=await mkWorker();txt=(await worker.recognize(f)).data.text;}
+      else if(/\.(txt|md|csv)$/i.test(name)||type.startsWith('text/')){txt=await f.text();}
+      else continue;
+      out.push(`【${name}】\n${txt}`);
+    }
+  }catch(err){ocrStat('一部の取込に失敗：'+err.message,true);}
+  if(worker){try{await worker.terminate();}catch(_){}}
+  if(out.length){$('docText').value=out.join('\n\n');parseDoc();ocrStat(`✅ ${out.length}件を取り込み・解析しました。`,true);setTimeout(()=>ocrStat('',false),5000);}
+}
+function setupDnD(){
+  const stop=e=>{e.preventDefault();e.stopPropagation();};
+  ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{stop(e);if(e.dataTransfer){try{e.dataTransfer.dropEffect='copy';}catch(_){}}document.body.classList.add('dragover');},false));
+  ['dragleave','dragend'].forEach(ev=>window.addEventListener(ev,e=>{stop(e);if(ev==='dragleave'&&e.relatedTarget)return;document.body.classList.remove('dragover');},false));
+  window.addEventListener('drop',e=>{stop(e);document.body.classList.remove('dragover');const dt=e.dataTransfer;if(dt&&dt.files&&dt.files.length)handleDroppedFiles(dt.files);},false);
+}
+async function pdfToText(file){await ensPdf();ocrStat('PDF解析中…');const buf=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:buf}).promise;let layer='';for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();layer+=tc.items.map(i=>i.str).join(' ')+'\n';}if(layer.replace(/\s/g,'').length>20)return layer;const w=await mkWorker();let out='';for(let p=1;p<=pdf.numPages;p++){ocrStat(`PDF ${p}/${pdf.numPages}ページOCR中…`);const pg=await pdf.getPage(p);const vp=pg.getViewport({scale:3});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;const{data:{text}}=await w.recognize(cv);out+=text+'\n';}await w.terminate();return out;}
+
+/* ===================================================================
+   保存・読込（JSON）＋自動保存
+=================================================================== */
+const FIELD_IDS=['f_caseType','f_genkoku','f_hikoku','f_taiyo','f_shobyo','f_keika','f_accDate','f_fixDate','f_age','f_gender','f_work','f_censusYear','f_income','f_hosp','f_visits','f_omonths','f_injType','f_medical','f_restMethod','f_restDays','f_restPeriodDays','f_restRate','f_tsukisoi','f_zappi','f_other','f_home','f_hosp_addr','f_km','f_trips','f_kmrate','f_grade','f_lossRate','f_workYears','f_rate','f_shiboStatus','f_shiboSol','f_funeral','f_seikatsu','f_shiboYears','f_paid','f_fault','f_benRate','f_carMaker','f_carModel','f_carType','f_carYear','f_mileage','f_jika','f_shuri','f_kaikae','f_hyoka','f_daisha','f_rekka','f_kyusha','f_butsuOther'];
+function collectState(){const fields={};FIELD_IDS.forEach(id=>{if($(id))fields[id]=$(id).value;});return {v:2,mode:document.body.classList.contains('mode-suit')?'suit':'nego',showOpp:$('showOpp').checked,incButsu:$('f_incButsu').checked,taper:TAPER,fields,manual:MANUAL};}
+function applyState(s){if(!s||!s.fields)return;FIELD_IDS.forEach(id=>{if($(id)&&s.fields[id]!==undefined)$(id).value=s.fields[id];});MANUAL.opp=s.manual?.opp||{};MANUAL.memo=s.manual?.memo||{};MANUAL.ours=s.manual?.ours||{};if(Array.isArray(s.taper))TAPER=s.taper;$('showOpp').checked=s.showOpp!==false;document.body.classList.toggle('no-opp',!$('showOpp').checked);$('f_incButsu').checked=!!s.incButsu;if(s.incButsu)$('secButsu').open=true;setMode(s.mode==='suit'?'suit':'nego');onGrade();onRestMethod();onCaseType();}
+function saveJson(){const s=collectState();const name=(val('f_genkoku')||val('f_hikoku')||'交通事故')+'_損害計算';const blob=new Blob([JSON.stringify(s,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);}
+function loadJsonFile(e){const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();r.onload=()=>{try{applyState(JSON.parse(r.result));render();}catch(err){alert('読込失敗：'+err.message);}};r.readAsText(f,'UTF-8');}
+let _saveT;function autosave(){clearTimeout(_saveT);_saveT=setTimeout(()=>{try{localStorage.setItem('jiko_v2_auto',JSON.stringify(collectState()));}catch(e){}},400);}
+function restoreAuto(){try{const s=JSON.parse(localStorage.getItem('jiko_v2_auto'));applyState(s);render();}catch(e){}$('restoreBanner').classList.remove('on');}
+function clearAuto(){localStorage.removeItem('jiko_v2_auto');$('restoreBanner').classList.remove('on');}
+
+/* ===================================================================
+   賃金センサス管理モーダル
+=================================================================== */
+function openCensus(){renderCensusEdit();$('censusModal').classList.add('on');}
+function closeCensus(){$('censusModal').classList.remove('on');}
+function renderCensusEdit(){const tb=$('censusTbody');tb.innerHTML='';census.forEach((c,i)=>{tb.innerHTML+=`<tr><td><input value="${c.label}" id="cl_${i}"></td><td><input type="number" value="${c.male}" id="cm_${i}"></td><td><input type="number" value="${c.female}" id="cf_${i}"></td><td><input type="number" value="${c.both!=null?c.both:''}" id="cb_${i}"></td><td><input value="${c.note||''}" id="cn_${i}"></td><td><button class="del-x" onclick="delCensusRow(${i})">✕</button></td></tr>`;});}
+function addCensusRow(){census.push({label:'新年度',male:0,female:0,both:null,note:''});renderCensusEdit();}
+function delCensusRow(i){census.splice(i,1);renderCensusEdit();}
+function saveCensusEdit(){const nd=[];document.querySelectorAll('#censusTbody tr').forEach((tr,i)=>{const b=$(`cb_${i}`).value;nd.push({label:$(`cl_${i}`).value,male:parseFloat($(`cm_${i}`).value)||0,female:parseFloat($(`cf_${i}`).value)||0,both:b===''?null:parseFloat(b),note:$(`cn_${i}`).value});});census=nd;localStorage.setItem('jiko_census_v3',JSON.stringify(census));buildCensusSel();onIncomeBasis();closeCensus();}
+
+/* ===================================================================
+   最小xlsxライター（純JS・無圧縮ZIP・スタイル対応）
+=================================================================== */
+const _CRC=(function(){const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=_CRC[(c^u[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function u8(s){return new TextEncoder().encode(s);}
+function zipStore(files){const parts=[],central=[];let off=0;const p16=(a,v)=>a.push(v&0xFF,(v>>>8)&0xFF);const p32=(a,v)=>a.push(v&0xFF,(v>>>8)&0xFF,(v>>>16)&0xFF,(v>>>24)&0xFF);files.forEach(f=>{const name=u8(f.name),data=f.data,crc=crc32(data),lh=[];p32(lh,0x04034b50);p16(lh,20);p16(lh,0);p16(lh,0);p16(lh,0);p16(lh,0);p32(lh,crc);p32(lh,data.length);p32(lh,data.length);p16(lh,name.length);p16(lh,0);const lhU=new Uint8Array(lh);parts.push(lhU,name,data);const cd=[];p32(cd,0x02014b50);p16(cd,20);p16(cd,20);p16(cd,0);p16(cd,0);p16(cd,0);p16(cd,0);p32(cd,crc);p32(cd,data.length);p32(cd,data.length);p16(cd,name.length);p16(cd,0);p16(cd,0);p16(cd,0);p16(cd,0);p32(cd,0);p32(cd,off);central.push({hdr:new Uint8Array(cd),name});off+=lhU.length+name.length+data.length;});const cdStart=off;let cdLen=0;central.forEach(c=>{parts.push(c.hdr,c.name);cdLen+=c.hdr.length+c.name.length;});const eo=[];p32(eo,0x06054b50);p16(eo,0);p16(eo,0);p16(eo,files.length);p16(eo,files.length);p32(eo,cdLen);p32(eo,cdStart);p16(eo,0);parts.push(new Uint8Array(eo));let total=0;parts.forEach(p=>total+=p.length);const out=new Uint8Array(total);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length;});return out;}
+function colL(i){let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+function escXml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function cellXml(c,ci,rn){const ref=colL(ci)+rn,st=c.s?` s="${c.s}"`:'';if(c.v===''||c.v==null)return `<c r="${ref}"${st}/>`;if(c.t==='n')return `<c r="${ref}"${st}><v>${c.v}</v></c>`;return `<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${escXml(c.v)}</t></is></c>`;}
+function sheetXml(rows,cols,merges){let sd='';rows.forEach((row,ri)=>{const rn=ri+1;let cs='';row.forEach((c,ci)=>{if(c)cs+=cellXml(c,ci,rn);});sd+=`<row r="${rn}">${cs}</row>`;});const colsX=(cols&&cols.length)?'<cols>'+cols.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols>':'';const mg=(merges&&merges.length)?'<mergeCells count="'+merges.length+'">'+merges.map(m=>`<mergeCell ref="${m}"/>`).join('')+'</mergeCells>':'';return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsX}<sheetData>${sd}</sheetData>${mg}</worksheet>`;}
+const CT_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+const RELS_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+const WBRELS_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+const WB_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="{SHEET}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+const STYLES_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="3"><font><sz val="11"/><name val="游ゴシック"/></font><font><b/><sz val="11"/><name val="游ゴシック"/></font><font><b/><sz val="14"/><name val="游ゴシック"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="7"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf><xf numFmtId="3" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="top"/></xf><xf numFmtId="3" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+
+function exportXlsx(forceMode){
+  render();
+  const suit=forceMode?(forceMode==='suit'):document.body.classList.contains('mode-suit');
+  const showOpp=$('showOpp').checked;
+  const lastIdx=showOpp?4:3, lastCol=colL(lastIdx);
+  const PL=partyLabels(suit);
+  const rows=[],merges=[];
+  const wide=()=>merges.push(`B${rows.length}:${lastCol}${rows.length}`);
+  if(suit){
+    const m=MODEL.meta;
+    rows.push([{v:'別紙',s:0}]);                       // 頭に「別紙」（左寄せ）
+    rows.push([null,{v:'損害額計算書',s:1}]);wide();    // タイトル（結合・中央／別紙は付けない）
+    rows.push([null]);
+    rows.push([null,{v:'事案の概要',s:6}]);wide();
+    rows.push([null,{v:`１ 当事者　${PL.p}：${val('f_genkoku')||'　'}／${PL.d}：${val('f_hikoku')||'　'}`,s:3}]);wide();
+    rows.push([null,{v:`２ 事故　${val('f_accDate')?jpDate(val('f_accDate')):'　'}　${val('f_taiyo')||''}`,s:3}]);wide();
+    rows.push([null,{v:`３ 傷害　${val('f_shobyo')||'　'}`,s:3}]);wide();
+    let keika=val('f_keika');if(!keika){const p=[];if(m.hosp)p.push(`入院${md(m.hosp)}`);if(m.oDays)p.push(`通院${md(m.oDays)}（実${m.visits}日）`);keika=p.join('、')+(val('f_fixDate')?`、${jpDate(val('f_fixDate'))}症状固定`:'');}
+    rows.push([null,{v:`４ 治療経過　${keika}`,s:3}]);wide();
+    if(MODEL.grade>0){rows.push([null,{v:`５ 後遺障害　第${MODEL.grade}級`,s:3}]);wide();}
+    rows.push([null]);
+  }else{
+    rows.push([null,{v:'損害賠償額の提示',s:1}]);wide();
+  }
+  const hdr=[null,{v:'損害費目',s:2}];
+  if(showOpp)hdr.push({v:'貴社提示額',s:2});
+  hdr.push({v:'当方提示額',s:2},{v:'備考（計算の根拠）',s:2});
+  rows.push(hdr);
+  const pushItem=(r)=>{const cells=[null,{v:r.name,s:3}];if(showOpp)cells.push({v:numOr0(MANUAL.opp[r.key]),t:'n',s:4});cells.push({v:Math.round(oursOf(r)),t:'n',s:4},{v:memoOf(r),s:3});rows.push(cells);};
+  const grpRow=(label)=>{const c=[null,{v:label,s:6}];if(showOpp)c.push({v:'',s:6});c.push({v:'',s:6},{v:'',s:6});rows.push(c);};
+  if(suit)grpRow((MODEL.koui.length||MODEL.butsu.length||MODEL.shibo.length)?'【傷害部分】':'【人的損害】');
+  MODEL.shougai.forEach(pushItem);
+  if(MODEL.koui.length){if(suit)grpRow('【後遺障害部分】');MODEL.koui.forEach(pushItem);}
+  if(MODEL.shibo.length){if(suit)grpRow('【死亡部分】');MODEL.shibo.forEach(pushItem);}
+  if(MODEL.butsu.length){if(suit)grpRow('【物的損害】');MODEL.butsu.forEach(pushItem);}
+  const totalRow=(label,opp,ours,bold)=>{const sn=bold?5:4;const c=[null,{v:label,s:bold?6:3}];if(showOpp)c.push({v:opp,t:'n',s:sn});c.push({v:ours,t:'n',s:sn},{v:'',s:3});rows.push(c);};
+  const baseX=MODEL.afterFault-MODEL.paid;
+  const benRateX=(num('f_benRate')||0)/100;
+  const bengoshiX=suit?Math.round(baseX*benRateX):0;
+  totalRow('損害額合計',sumOpp().total,MODEL.total,true);
+  if(MODEL.fault>0)totalRow(`過失相殺（被害者${MODEL.fault}%）`,'',-MODEL.faultCut,false);
+  totalRow('既払金',oppPaid(),-MODEL.paid,false);
+  if(suit&&bengoshiX>0)totalRow(`弁護士費用（${Math.round(benRateX*100)}%）`,'',bengoshiX,false);
+  totalRow(suit?'認容額':'請求額合計',sumOpp().total-oppPaid(),baseX+bengoshiX,true);
+
+  const colW=showOpp?[3,18,13,13,52]:[3,18,13,52];
+  const ws=sheetXml(rows,colW,merges);
+  const sheetName=(suit?'損害額計算書':'損害賠償額の提示').slice(0,31);
+  const files=[
+    {name:'[Content_Types].xml',data:u8(CT_XML)},
+    {name:'_rels/.rels',data:u8(RELS_XML)},
+    {name:'xl/workbook.xml',data:u8(WB_XML.replace('{SHEET}',escXml(sheetName)))},
+    {name:'xl/_rels/workbook.xml.rels',data:u8(WBRELS_XML)},
+    {name:'xl/styles.xml',data:u8(STYLES_XML)},
+    {name:'xl/worksheets/sheet1.xml',data:u8(ws)}
+  ];
+  const blob=new Blob([zipStore(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const fname=(val('f_genkoku')||'交通事故')+'_'+(suit?'損害額計算書':'損害賠償額の提示')+'.xlsx';
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function numOr0(v){const n=parseFloat(v);return isNaN(n)?'':n;}
+
+/* ===================================================================
+   初期化
+=================================================================== */
+buildCensusSel();
+detectRate();onIncomeBasis();onGrade();onRestMethod();onCaseType();setupDnD();
+if(localStorage.getItem('jiko_v2_auto'))$('restoreBanner').classList.add('on');
+render();
+</script>
+</body>
+</html>
