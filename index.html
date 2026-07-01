@@ -235,7 +235,7 @@ body.no-opp .col-opp{display:none}
     <summary>入通院状況</summary>
     <div class="sec-body">
       <div class="row2">
-        <div class="fld"><label>入院日数（暦日）</label><input type="number" id="f_hosp" min="0" placeholder="0" oninput="onInput()"></div>
+        <div class="fld"><label>入院日数（暦日）</label><input type="number" id="f_hosp" min="0" placeholder="0" oninput="onDates()"></div>
         <div class="fld"><label>実通院日数</label><input type="number" id="f_visits" min="0" placeholder="0" oninput="onInput()"></div>
       </div>
       <div class="fld"><label>通院期間（日数）</label><input type="number" id="f_omonths" min="0" step="1" placeholder="0" oninput="onMonthsManual()"><div class="hint" id="omHint">事故日〜症状固定日から自動計算（30日＝1ヶ月）、または直接入力</div></div>
@@ -489,7 +489,7 @@ function md(days){const m=Math.floor(days/30),d=Math.round(days-m*30);if(m<=0)re
 
 function onAccDate(){detectRate();onDates();}
 function detectRate(){const d=val('f_accDate');const h=$('rateHint');if(!d){h.textContent='';return;}const acc=new Date(d),b=new Date('2020-04-01');if(acc>=b){h.innerHTML='<span class="badge-3">年利3%（R2.4.1以降）</span>';$('f_rate').value='3';}else{h.innerHTML='<span class="badge-5">年利5%（R2.3.31以前）</span>';$('f_rate').value='5';}onInput();}
-function onDates(){const f=val('f_accDate'),l=val('f_fixDate');if(f&&l){const d1=new Date(f),d2=new Date(l);if(d2>=d1){const days=Math.round((d2-d1)/86400000);$('f_omonths').value=days;$('omHint').textContent=`自動：${days}日（${md(days)}）`;}}onInput();}
+function onDates(){const f=val('f_accDate'),l=val('f_fixDate');if(f&&l){const d1=new Date(f),d2=new Date(l);if(d2>=d1){const total=Math.round((d2-d1)/86400000)+1;/* 初日算入 */const hosp=num('f_hosp');const oDays=Math.max(0,total-hosp);$('f_omonths').value=oDays;$('omHint').textContent=hosp>0?`自動：総期間${total}日（初日算入）−入院${hosp}日＝通院${oDays}日（${md(oDays)}）`:`自動：${oDays}日（初日算入・${md(oDays)}）`;}}onInput();}
 function onMonthsManual(){const d=num('f_omonths');$('omHint').textContent=d>0?`${d}日＝${md(d)}`:'手動入力中';onInput();}
 function onAge(){const a=int('f_age');if(a>0&&val('f_grade')!=='0')$('f_workYears').value=Math.max(0,67-a);onInput();}
 function onGrade(){const g=int('f_grade');$('gradeFields').style.display=g>0?'block':'none';if(g>0){$('f_lossRate').value=Math.round(LRATE[g]*100);const a=int('f_age');if(a>0)$('f_workYears').value=Math.max(0,67-a);$('grade14hint').style.display=(g>=12)?'block':'none';}onInput();}
