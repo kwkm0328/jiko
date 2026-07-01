@@ -880,13 +880,13 @@ function parseDoc(){
   let v=fNum(t,/(?:実通院日数|通院実日数|実治療日数|実日数)[^0-9]{0,8}(\d{1,3})\s*日?/);if(v==null)v=fNum(t,/通院[^0-9期間治実]{0,4}(\d{1,3})\s*日/);if(v!=null){$('f_visits').value=v;found.push(['実通院日数',v+'日']);}
   // 通院（治療）期間：明示日数→月数→日付範囲→事故〜固定
   let periodDays=null;
-  {const rg=rangeAfter(t,['治療期間','入通院期間','通院期間','治療','入通院']);if(rg){const d=Math.round((new Date(rg[1])-new Date(rg[0]))/86400000);if(d>0){periodDays=d;if(!acc)acc=rg[0];if(!fix)fix=rg[1];}}}
+  {const rg=rangeAfter(t,['治療期間','入通院期間','通院期間','治療','入通院']);if(rg){const d=Math.round((new Date(rg[1])-new Date(rg[0]))/86400000)+1;/* 初日算入 */if(d>0){periodDays=d;if(!acc)acc=rg[0];if(!fix)fix=rg[1];}}}
   if(periodDays==null)periodDays=fNum(t,/(?:総治療(?:期間|日数|日)?|入通院期間|通院期間|治療期間日数|治療期間)[^0-9]{0,8}(\d{1,3})\s*日/);
   if(periodDays==null){const omx=fNum(t,/(?:通院|治療)(?:期間)?[^0-9]{0,6}(\d{1,2})\s*(?:[かヶケ]月|箇月)/);if(omx!=null)periodDays=omx*30;}
-  if(periodDays==null&&acc&&fix){const d=Math.round((new Date(fix)-new Date(acc))/86400000);if(d>0)periodDays=d;}
+  if(periodDays==null&&acc&&fix){const d=Math.round((new Date(fix)-new Date(acc))/86400000)+1;/* 初日算入 */if(d>0)periodDays=d;}
   if(acc){$('f_accDate').value=acc;found.push(['事故発生日',acc]);}
   if(fix){$('f_fixDate').value=fix;found.push(['症状固定日',fix]);}
-  if(periodDays!=null){$('f_omonths').value=periodDays;$('omHint').textContent=`${periodDays}日＝${md(periodDays)}`;found.push(['通院期間',periodDays+'日（'+md(periodDays)+'）']);}
+  if(periodDays!=null){const oD=Math.max(0,periodDays-(hosp||0));$('f_omonths').value=oD;$('omHint').textContent=(hosp>0)?`総期間${periodDays}日−入院${hosp}日＝通院${oD}日（${md(oD)}）`:`${oD}日＝${md(oD)}`;found.push(['通院期間',oD+'日（'+md(oD)+'）']);}
   // 年齢
   const age=fNum(t,/(\d{1,3})\s*歳/);if(age!=null){$('f_age').value=age;found.push(['年齢',age+'歳']);}
   // 後遺障害等級
