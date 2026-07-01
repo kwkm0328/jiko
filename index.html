@@ -729,7 +729,7 @@ function render(){
   const f=$('dmgFoot');f.innerHTML='';
   f.innerHTML+=footRow('損害額合計',oppSum.total,MODEL.total,'total');
   if(MODEL.fault>0)f.innerHTML+=footRow(`過失相殺（被害者${MODEL.fault}%）`,'',-MODEL.faultCut,'');
-  f.innerHTML+=footRow('既払金',oppPaid(),-MODEL.paid,'');
+  f.innerHTML+=footRow('既払金',-oppPaid(),-MODEL.paid,'');
   if(suit&&bengoshi>0)f.innerHTML+=footRow(`弁護士費用（${Math.round(benRate*100)}%）`,'',bengoshi,'');
   f.innerHTML+=footRow(suit?'認容額（請求額）':'請求額',oppSum.total-oppPaid(),finalClaim,'claim');
   renderKo();renderGaiyo();autosave();
@@ -1067,7 +1067,7 @@ function exportXlsx(forceMode){
   const bengoshiX=suit?Math.round(baseX*benRateX):0;
   totalRow('損害額合計',sumOpp().total,MODEL.total,true);
   if(MODEL.fault>0)totalRow(`過失相殺（被害者${MODEL.fault}%）`,'',-MODEL.faultCut,false);
-  totalRow('既払金',oppPaid(),-MODEL.paid,false);
+  totalRow('既払金',-oppPaid(),-MODEL.paid,false);
   if(suit&&bengoshiX>0)totalRow(`弁護士費用（${Math.round(benRateX*100)}%）`,'',bengoshiX,false);
   totalRow(suit?'認容額':'請求額合計',sumOpp().total-oppPaid(),baseX+bengoshiX,true);
 
