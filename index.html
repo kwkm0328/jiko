@@ -22,10 +22,13 @@ body{font-family:-apple-system,'Hiragino Sans','Yu Gothic UI',Meiryo,sans-serif;
 .tbtn:hover{background:rgba(255,255,255,.28)}
 .chk{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;white-space:nowrap}
 /* ===== レイアウト ===== */
-.wrap{display:grid;grid-template-columns:380px 1fr;height:calc(100vh - 38px)}
+.wrap{display:grid;grid-template-columns:var(--leftw,480px) 6px 1fr;height:calc(100vh - 38px)}
 .left{background:var(--card);border-right:1px solid var(--border);padding:10px;overflow-y:auto}
 .right{background:var(--bg);padding:12px;overflow-y:auto}
-@media(max-width:760px){.wrap{grid-template-columns:1fr;height:auto}}
+.splitter{background:var(--border);cursor:col-resize;position:relative;transition:background .15s}
+.splitter:hover,.splitter.drag{background:#3b82f6}
+.splitter::before{content:"⋮";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:12px;opacity:.6}
+@media(max-width:760px){.wrap{grid-template-columns:1fr;height:auto}.splitter{display:none}}
 /* ===== 折りたたみセクション ===== */
 .sec{border:1px solid var(--border);border-radius:6px;margin-bottom:8px;background:#fff;overflow:hidden}
 .sec>summary{list-style:none;cursor:pointer;padding:7px 10px;font-size:11.5px;font-weight:700;color:var(--red);background:var(--red-bg);display:flex;align-items:center;gap:6px;user-select:none}
@@ -164,13 +167,16 @@ body.no-opp .col-opp{display:none}
     <summary>📄 資料から自動入力（OCR対応）</summary>
     <div class="sec-body">
       <textarea id="docText" placeholder="交通事故証明書・診断書・打合せメモを貼り付け、または下のボタンで画像/PDFを読込。&#10;例：事故発生日 令和6年3月15日／症状固定 令和6年9月20日／入院14日 実通院60日 42歳 後遺障害第14級"></textarea>
-      <div class="hint">事故日・症状固定日・入院/実通院日数・年齢・等級・既払金・過失割合を抽出。<b>画面のどこにでも画像/PDF/テキストをドラッグ＆ドロップ（複数まとめてOK）</b>。複数は順次OCRして本文を連結し一括解析。書類は外部送信せず、OCRもこのPC内で実行（エンジンのみ初回取得）。<br><b>💬 Claudeに提示書を読ませて出力させたJSONをこの欄に貼って「解析して自動入力」を押すと、貴社提示額の各費目まで一括で入ります。</b></div>
+      <div class="hint"><b>方法① そのまま読み取る（かんたん）：</b>「📷 画像・PDF」で提示書を選ぶ／この欄に画像・テキストをドラッグ＆ドロップ → 「解析して自動入力」。事故日・治療期間・既払金・貴社提示額などを自動抽出します。書類は外部送信せず、OCRもこのPC内で実行。<br><b>方法② Claudeで正確に読み取る（スキャンが不鮮明なとき）：</b>下の「📋 Claude用プロンプトをコピー」を押す → チャットのClaudeにそのプロンプトを貼り、提示書の写真も一緒に添付 → Claudeが返した内容（JSON）をコピーしてこの欄に貼り、「解析して自動入力」。貴社提示額の各費目まで正確に入ります。</div>
       <div class="btns">
         <button class="btn-sm primary" onclick="parseDoc()" style="flex:1">解析して自動入力</button>
         <button class="btn-sm" onclick="document.getElementById('ocrFile').click()">📷 画像・PDF</button>
         <button class="btn-sm" onclick="document.getElementById('docFile').click()">.txt</button>
         <input type="file" id="docFile" accept=".txt,.md,.csv" style="display:none" onchange="loadDocFile(event)">
         <input type="file" id="ocrFile" accept="image/*,application/pdf" multiple style="display:none" onchange="runOCRFile(event)">
+      </div>
+      <div class="btns" style="margin-top:5px">
+        <button class="btn-sm" onclick="copyClaudePrompt(this)" style="flex:1">📋 Claude用プロンプトをコピー（方法②）</button>
       </div>
       <div id="ocrProgress" class="ocr-progress" style="display:none"></div>
       <div id="parseResult" class="parse-result" style="display:none"></div>
@@ -400,6 +406,9 @@ body.no-opp .col-opp{display:none}
     </div>
   </details>
 </div>
+
+<!-- 幅変更バー -->
+<div class="splitter" id="splitter" title="ドラッグで幅を変更"></div>
 
 <!-- ============ 右：出力 ============ -->
 <div class="right">
@@ -853,6 +862,22 @@ function dBefore(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0)
 function fNum(t,re){const m=t.match(re);return m?parseInt(m[1]):null;}
 function loadDocFile(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('docText').value=r.result;parseDoc();};r.readAsText(f,'UTF-8');e.target.value='';}
 function rangeAfter(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0){const ds=allD(t.slice(i,i+70));if(ds.length>=2)return [ds[0],ds[ds.length-1]];f=i+k.length;}}return null;}
+function copyClaudePrompt(btn){
+  const p=`あなたは交通事故の損害賠償実務に精通したアシスタントです。添付した「損害賠償額の提示（示談提示書・賠償額のご案内）」の画像／PDFを精読し、下記の交通事故損害計算ツール用JSONを出力してください。
+
+【ルール】
+・各費目の「貴社（保険会社）提示額」を正確に読み取り、manual.opp に入れる。金額0円の費目は入れない。
+・費目キー：治療費=chiryo／通院交通費(通院費)=kotsu／入通院付添費・看護料=tsukisoi／休業損害=kyugyo／傷害(入通院)慰謝料=isharyo／入院雑費=zappi／その他・文書料=other／後遺障害慰謝料=koui_sol／後遺障害逸失利益=koui_lost／既払額=__paid（manual.opp内）。
+・事故日=f_accDate、症状固定日(治療終了日)=f_fixDate は "YYYY-MM-DD"。入院日数=f_hosp、実通院日数=f_visits。通院期間=f_omonths は「総治療期間の暦日数（初日算入）−入院日数」。過失割合(被害者側%)=f_fault。既払額=f_paid。
+・後遺障害があれば f_caseType="koui" と f_grade（等級番号）、なければ f_caseType="shougai"。
+・当方算定額(manual.ours)は入れない（空のまま）。書面に無い項目は空欄にし、推測で埋めない。
+・検算：費目合計＝印字の小計、小計−既払＝ご提示金額 になるか確認する。
+・出力はJSONだけ（説明文やコードブロックの前後の文章は不要。コピペしやすいように）。
+
+【出力フォーマット】
+{"v":2,"mode":"nego","showOpp":true,"incButsu":false,"fields":{"f_caseType":"shougai","f_genkoku":"","f_accDate":"","f_fixDate":"","f_hosp":"0","f_visits":"","f_omonths":"","f_income":"","f_workYears":"","f_rate":"3","f_paid":"","f_fault":"0"},"manual":{"opp":{},"memo":{},"ours":{}}}`;
+  navigator.clipboard.writeText(p).then(()=>{const o=btn.textContent;btn.textContent='✓ コピーしました！Claudeに貼り、提示書の写真も添付してください';setTimeout(()=>btn.textContent=o,3500);}).catch(()=>{prompt('下記をコピーしてClaudeに貼ってください：',p);});
+}
 function parseDoc(){
   const raw=$('docText').value;if(!raw.trim()){alert('資料テキストを貼り付けてください。');return;}
   // ★ Claudeが出力したJSON（貴社提示額など）を貼った場合は、そのまま状態として取り込む
@@ -1092,9 +1117,25 @@ function numOr0(v){const n=parseFloat(v);return isNaN(n)?'':n;}
    初期化
 =================================================================== */
 buildCensusSel();
-detectRate();onIncomeBasis();onGrade();onRestMethod();onCaseType();setupDnD();
+detectRate();onIncomeBasis();onGrade();onRestMethod();onCaseType();setupDnD();setupSplitter();
 if(localStorage.getItem('jiko_v2_auto'))$('restoreBanner').classList.add('on');
 render();
+
+/* 左パネル幅：ドラッグで変更＋記憶 */
+function setupSplitter(){
+  const MIN=320,MAX=900;
+  const saved=parseInt(localStorage.getItem('jiko_leftw'));
+  if(saved>=MIN&&saved<=MAX)document.documentElement.style.setProperty('--leftw',saved+'px');
+  const sp=$('splitter');if(!sp)return;
+  let dragging=false;
+  const move=e=>{if(!dragging)return;const x=(e.touches?e.touches[0].clientX:e.clientX);const w=Math.max(MIN,Math.min(MAX,x));document.documentElement.style.setProperty('--leftw',w+'px');};
+  const up=()=>{if(!dragging)return;dragging=false;sp.classList.remove('drag');document.body.style.userSelect='';const w=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--leftw'));if(w)localStorage.setItem('jiko_leftw',w);};
+  const down=e=>{dragging=true;sp.classList.add('drag');document.body.style.userSelect='none';e.preventDefault();};
+  sp.addEventListener('mousedown',down);sp.addEventListener('touchstart',down,{passive:false});
+  window.addEventListener('mousemove',move);window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
+  sp.addEventListener('dblclick',()=>{document.documentElement.style.setProperty('--leftw','480px');localStorage.setItem('jiko_leftw',480);});
+}
 </script>
 </body>
 </html>
