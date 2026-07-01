@@ -178,6 +178,7 @@ body.no-opp .col-opp{display:none}
       <div class="btns" style="margin-top:5px">
         <button class="btn-sm" onclick="copyClaudePrompt(this)" style="flex:1">📋 Claude用プロンプトをコピー（方法②）</button>
       </div>
+      <label class="chk" style="margin-top:5px;font-size:11px"><input type="checkbox" id="ocrPre" checked> 画像を鮮明化してからOCR（拡大＋二値化・写真の影/フォルダ跡に強い）</label>
       <div id="ocrProgress" class="ocr-progress" style="display:none"></div>
       <div id="parseResult" class="parse-result" style="display:none"></div>
     </div>
@@ -978,7 +979,34 @@ function ocrStat(h,show){const e=$('ocrProgress');e.style.display=show===false?'
 async function ensTess(){if(!window.Tesseract){ocrStat('OCRエンジン取得中…（初回のみ）');await loadScript(OCRCDN.tess);}}
 async function ensPdf(){if(!window.pdfjsLib){await loadScript(OCRCDN.pdf);window.pdfjsLib.GlobalWorkerOptions.workerSrc=OCRCDN.pdfw;}}
 async function mkWorker(){await ensTess();ocrStat('日本語モデル準備中…');return await Tesseract.createWorker('jpn',1,{logger:m=>{if(m.status==='recognizing text')ocrStat('文字認識中… '+Math.round(m.progress*100)+'%');}});}
-async function runOCRFromFile(f){if(!f)return;try{let text='';if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){text=await pdfToText(f);}else{const w=await mkWorker();const{data:{text:t}}=await w.recognize(f);await w.terminate();text=t;}$('docText').value=text;parseDoc();ocrStat('✅ 読み取り完了。',true);setTimeout(()=>ocrStat('',false),4000);}catch(err){ocrStat('失敗：'+err.message+'<br>テキストを直接貼り付けてください。',true);}}
+async function runOCRFromFile(f){if(!f)return;try{let text='';if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){text=await pdfToText(f);}else{const w=await mkWorker();ocrStat('画像を前処理中…');const src=await ocrSource(f);const{data:{text:t}}=await w.recognize(src);await w.terminate();text=t;}$('docText').value=text;parseDoc();ocrStat('✅ 読み取り完了。',true);setTimeout(()=>ocrStat('',false),4000);}catch(err){ocrStat('失敗：'+err.message+'<br>テキストを直接貼り付けてください。',true);}}
+/* OCR前処理：拡大＋適応的二値化（Bradley法・積分画像でO(n)）。写真の影・フォルダ跡に強い。 */
+function preprocEnabled(){const c=$('ocrPre');return c?c.checked:true;}
+function fileToBitmap(f){return new Promise((res,rej)=>{const url=URL.createObjectURL(f);const i=new Image();i.onload=()=>{URL.revokeObjectURL(url);res(i);};i.onerror=e=>{URL.revokeObjectURL(url);rej(new Error('画像を開けません'));};i.src=url;});}
+function preprocCanvas(img){
+  let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+  // 拡大（小さい画像を鮮明化）／上限で処理量を抑制
+  const MINW=1600,MAXW=2600;let scale=1;
+  if(w<MINW)scale=Math.min(MINW/w,3);
+  if(w*scale>MAXW)scale=MAXW/w;
+  const cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+  const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
+  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,cw,ch);
+  const id=ctx.getImageData(0,0,cw,ch),d=id.data,N=cw*ch;
+  const gray=new Uint8Array(N);
+  for(let i=0,p=0;i<d.length;i+=4,p++)gray[p]=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;
+  // 積分画像
+  const W1=cw+1;const integ=new Float64Array(W1*(ch+1));
+  for(let y=0;y<ch;y++){let rs=0;const yo=y*cw;for(let x=0;x<cw;x++){rs+=gray[yo+x];integ[(y+1)*W1+(x+1)]=integ[y*W1+(x+1)]+rs;}}
+  const half=Math.max(6,cw>>5);const T=0.15;   // 窓：幅の約1/16、平均より15%暗ければ黒
+  for(let y=0;y<ch;y++){const y1=y-half<0?0:y-half,y2=y+half>=ch?ch-1:y+half;for(let x=0;x<cw;x++){
+    const x1=x-half<0?0:x-half,x2=x+half>=cw?cw-1:x+half;const cnt=(x2-x1+1)*(y2-y1+1);
+    const s=integ[(y2+1)*W1+(x2+1)]-integ[y1*W1+(x2+1)]-integ[(y2+1)*W1+x1]+integ[y1*W1+x1];
+    const p=y*cw+x;const v=(gray[p]*cnt<=s*(1-T))?0:255;const di=p*4;d[di]=d[di+1]=d[di+2]=v;
+  }}
+  ctx.putImageData(id,0,0);return cv;
+}
+async function ocrSource(f){if(!preprocEnabled())return f;try{const img=await fileToBitmap(f);return preprocCanvas(img);}catch(e){return f;}}
 function runOCRFile(e){const fs=e.target.files;e.target.value='';if(!fs||!fs.length)return;if(fs.length===1)runOCRFromFile(fs[0]);else handleDroppedFiles(fs);}
 function handleDroppedFile(f){
   if(!f)return;
@@ -998,7 +1026,7 @@ async function handleDroppedFiles(list){
       ocrStat(`(${i+1}/${arr.length}) ${name} を取込中…`);
       let txt='';
       if(type==='application/pdf'||/\.pdf$/i.test(name)){txt=await pdfToText(f);}
-      else if(type.startsWith('image/')){if(!worker)worker=await mkWorker();txt=(await worker.recognize(f)).data.text;}
+      else if(type.startsWith('image/')){if(!worker)worker=await mkWorker();const src=await ocrSource(f);txt=(await worker.recognize(src)).data.text;}
       else if(/\.(txt|md|csv)$/i.test(name)||type.startsWith('text/')){txt=await f.text();}
       else continue;
       out.push(`【${name}】\n${txt}`);
