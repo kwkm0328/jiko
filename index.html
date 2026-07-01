@@ -623,8 +623,11 @@ function compute(){
 
   // 行モデル
   const shougai=[];
-  shougai.push(row('chiryo','治療費',medical,medical>0?'実費':''));
-  shougai.push(row('kotsu','通院交通費',kotsu,kotsu>0?`片道${km}km×往復2×${trips}回×${kmrate}円/km`:''));
+  // 実費項目：当方の独自入力が無ければ貴社提示額を引き継ぐ（治療費は既払と相殺されるため必須）
+  const medOpp=parseFloat(MANUAL.opp.chiryo)||0;const medOurs=medical>0?medical:medOpp;
+  shougai.push(row('chiryo','治療費',medOurs,medOurs>0?(medical>0?'実費':'実費（貴社提示と同額）'):''));
+  const kotsuOpp=parseFloat(MANUAL.opp.kotsu)||0;const kotsuOurs=kotsu>0?kotsu:kotsuOpp;
+  shougai.push(row('kotsu','通院交通費',kotsuOurs,kotsu>0?`片道${km}km×往復2×${trips}回×${kmrate}円/km`:(kotsuOurs>0?'実費（貴社提示と同額）':'')));
   shougai.push(row('tsukisoi','入通院付添費',tsukisoi,''));
   shougai.push(row('kyugyo','休業損害',rest,restMemo));
   shougai.push(row('isharyo','入通院慰謝料',sol,solMemo));
