@@ -164,7 +164,7 @@ body.no-opp .col-opp{display:none}
     <summary>📄 資料から自動入力（OCR対応）</summary>
     <div class="sec-body">
       <textarea id="docText" placeholder="交通事故証明書・診断書・打合せメモを貼り付け、または下のボタンで画像/PDFを読込。&#10;例：事故発生日 令和6年3月15日／症状固定 令和6年9月20日／入院14日 実通院60日 42歳 後遺障害第14級"></textarea>
-      <div class="hint">事故日・症状固定日・入院/実通院日数・年齢・等級・既払金・過失割合を抽出。<b>画面のどこにでも画像/PDF/テキストをドラッグ＆ドロップ（複数まとめてOK）</b>。複数は順次OCRして本文を連結し一括解析。書類は外部送信せず、OCRもこのPC内で実行（エンジンのみ初回取得）。</div>
+      <div class="hint">事故日・症状固定日・入院/実通院日数・年齢・等級・既払金・過失割合を抽出。<b>画面のどこにでも画像/PDF/テキストをドラッグ＆ドロップ（複数まとめてOK）</b>。複数は順次OCRして本文を連結し一括解析。書類は外部送信せず、OCRもこのPC内で実行（エンジンのみ初回取得）。<br><b>💬 Claudeに提示書を読ませて出力させたJSONをこの欄に貼って「解析して自動入力」を押すと、貴社提示額の各費目まで一括で入ります。</b></div>
       <div class="btns">
         <button class="btn-sm primary" onclick="parseDoc()" style="flex:1">解析して自動入力</button>
         <button class="btn-sm" onclick="document.getElementById('ocrFile').click()">📷 画像・PDF</button>
@@ -852,6 +852,23 @@ function loadDocFile(e){const f=e.target.files[0];if(!f)return;const r=new FileR
 function rangeAfter(t,kw){for(const k of kw){let f=0,i;while((i=t.indexOf(k,f))>=0){const ds=allD(t.slice(i,i+70));if(ds.length>=2)return [ds[0],ds[ds.length-1]];f=i+k.length;}}return null;}
 function parseDoc(){
   const raw=$('docText').value;if(!raw.trim()){alert('資料テキストを貼り付けてください。');return;}
+  // ★ Claudeが出力したJSON（貴社提示額など）を貼った場合は、そのまま状態として取り込む
+  const jr=raw.trim();
+  if(jr[0]==='{'||jr[0]==='['){
+    try{
+      const obj=JSON.parse(jr);
+      const st=Array.isArray(obj)?obj[0]:obj;
+      if(st&&(st.fields||st.manual)){
+        applyState(st);render();
+        const opp=st.manual&&st.manual.opp?st.manual.opp:{};
+        const cnt=Object.keys(opp).filter(k=>k!=='__paid').length;
+        const pr=$('parseResult');pr.style.display='block';
+        pr.innerHTML='<b>JSON読込：</b>貴社提示額'+cnt+'費目'+(opp.__paid?'＋既払金':'')+'を取り込みました。（表に反映済み）';
+        $('docText').value='';
+        return;
+      }
+    }catch(e){/* JSONでなければ通常のテキスト解析へ */}
+  }
   const t=raw.normalize('NFKC');  /* 全角数字・記号を半角化（保険会社書面・OCR対策） */
   const found=[];
   // 事故発生日・症状固定日
