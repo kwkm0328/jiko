@@ -940,8 +940,11 @@ function parseDoc(){
   let zoneEnd=dz.length;
   ['損害の合計','損害賠償額合計','損害賠償額の合計','今までにお支払','最終のお支払'].forEach(kw=>{const i=dz.indexOf(kw);if(i>=0&&i<zoneEnd)zoneEnd=i;});
   const zone=dz.slice(0,zoneEnd);
-  const NUM='([0-9][0-9,．。・.]*)';                    // 費目直後の最初の数値（0等の小額は下で除外）
-  const sanNum=s=>parseInt(String(s).replace(/[^0-9]/g,''))||0;
+  // 金額欄でのOCR誤認（英字→数字）を補正：S→5, O→0, l/I→1, B→8 等
+  const DIGITMAP={'O':'0','o':'0','D':'0','Q':'0','U':'0','I':'1','l':'1','|':'1','i':'1','S':'5','s':'5','B':'8','Z':'2','z':'2','G':'6','b':'6','g':'9','?':'2'};
+  const NC='0-9OoDQUIl|iSsBZzGbg?';                     // 数字＋数字に誤認されやすい英字
+  const NUM='(['+NC+']['+NC+',．。・.]*)';               // 費目直後の最初の数値（0等の小額は下で除外）
+  const sanNum=s=>{let r='';for(const ch of String(s))r+=(DIGITMAP[ch]!==undefined?DIGITMAP[ch]:ch);return parseInt(r.replace(/[^0-9]/g,''))||0;};
   const OPP_MAP=[
     ['koui_sol',new RegExp('後遺(?:障害)?慰謝料.{0,4}?'+NUM)],
     ['koui_lost',new RegExp('後遺(?:障害)?(?:逸失利益|得べかりし利益).{0,4}?'+NUM)],
@@ -957,7 +960,7 @@ function parseDoc(){
   OPP_MAP.forEach(([k,re])=>{const m=zone.match(re);if(m){const a=sanNum(m[1]);if(a>=100){MANUAL.opp[k]=a;MANUAL.oppAuto[k]=1;oppCount++;}}});
   if(MANUAL.opp.koui_sol||MANUAL.opp.koui_lost)$('f_caseType').value='koui';
   // 既払金（記号付き桁区切り・空白対応）
-  const pm2=dz.match(/(?:既払(?:金|額)?|内払(?:金)?|お支払(?:済)?(?:額)?)[^0-9]{0,6}([0-9][0-9,．。・.]{3,})/);
+  const pm2=dz.match(new RegExp('(?:既払(?:金|額)?|内払(?:金)?|お支払(?:済)?(?:額)?)[^'+NC+']{0,6}(['+NC+']['+NC+',．。・.]{3,})'));
   if(pm2){const paid=sanNum(pm2[1]);if(paid>0){$('f_paid').value=paid;MANUAL.opp['__paid']=paid;if(!found.some(f=>f[0]==='既払金'))found.push(['既払金',paid.toLocaleString()+'円']);}}
   else if(pm){MANUAL.opp['__paid']=parseInt(pm[1].replace(/,/g,''))||0;}
   if(oppCount)found.push(['貴社提示額',oppCount+'費目を取込（黄色＝要照合）']);
