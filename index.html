@@ -605,15 +605,15 @@ function compute(){
     const pdays=int('f_restPeriodDays')||oDays;
     const rr=(num('f_restRate')||30)/100;
     rest=Math.round(daily*pdays*rr);
-    restMemo=pdays>0?`一律制限率方式：基礎日額${fmt(daily)}円×通院期間${pdays}日×制限率${Math.round(rr*100)}%＝${fmt(rest)}円`:'';
+    restMemo=(income>0&&pdays>0)?`一律制限率方式：基礎日額${fmt(daily)}円×通院期間${pdays}日×制限率${Math.round(rr*100)}%＝${fmt(rest)}円`:'';
   }else if(restMethod==='taper'){
     const segs=getTaperSegs();let dr=0;const parts=[];
     segs.forEach(s=>{dr+=s.days*s.rate/100;parts.push(`${s.days}日×${s.rate}%`);});
     rest=Math.round(daily*dr);
-    restMemo=segs.length?`期間別逓減方式：基礎日額${fmt(daily)}円×（${parts.join('＋')}）＝${fmt(rest)}円`:'';
+    restMemo=(income>0&&segs.length)?`期間別逓減方式：基礎日額${fmt(daily)}円×（${parts.join('＋')}）＝${fmt(rest)}円`:'';
   }else{
     rest=Math.round(daily*restDays);
-    restMemo=restDays>0?`実通院日数方式：基礎収入${fmt(income)}円÷365＝日額${fmt(daily)}円×休業${restDays}日＝${fmt(rest)}円`:'';
+    restMemo=(income>0&&restDays>0)?`実通院日数方式：基礎収入${fmt(income)}円÷365＝日額${fmt(daily)}円×休業${restDays}日＝${fmt(rest)}円`:'';
   }
 
   // 逸失利益
